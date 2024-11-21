@@ -15,7 +15,20 @@ def create_app():
     # Initialize Flask app
     app = Flask(__name__)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', os.urandom(24))
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///passwords.db'
+    
+    # Configure database
+    db_type = os.getenv('DATABASE_TYPE', 'sqlite')
+    db_path = os.getenv('DATABASE_PATH', os.path.join(app.instance_path, 'passwords.db'))
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    
+    # Construct database URL
+    if db_type == 'sqlite':
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
+    else:
+        raise ValueError(f'Unsupported database type: {db_type}')
+    
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
     # Initialize extensions with app
