@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}My Passwords - Password Manager{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>My Passwords</h2>
+                <a href="{{ url_for('add_password') }}" class="btn btn-primary">Add New Password</a>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                            </svg>
+                        </span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Filter by website name..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <select id="tagFilter" class="form-select">
+                        <option value="">Filter by tag...</option>
+                        {% for tag in all_tags %}
+                            <option value="{{ tag }}">{{ tag }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div id="noResults" class="alert alert-info d-none">
+                No passwords match your search criteria.
+            </div>
+
+            <div class="list-group" id="passwordList">
+                {% if entries %}
+                    {% for entry in entries %}
+                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center password-entry">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1 website-name">{{ entry.website }}</h5>
+                                <p class="mb-1 text-muted">{{ entry.username }}</p>
+                                {% if entry.tags %}
+                                    <div class="tags">
+                                        {% for tag in entry.tags.split(',') %}
+                                            <span class="badge bg-secondary me-1">{{ tag }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-shrink-0">
+                                <a href="{{ url_for('view_password', entry_id=entry.id) }}" class="btn btn-sm btn-info me-2">View</a>
+                                <form action="{{ url_for('delete_password', entry_id=entry.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this password?')">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-info text-center">
+                        <p>You haven't added any passwords yet.</p>
+                        <a href="{{ url_for('add_password') }}" class="btn btn-primary mt-2">Add Your First Password</a>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tagFilter = document.getElementById('tagFilter');
+    const entries = document.querySelectorAll('.password-entry');
+    const noResults = document.getElementById('noResults');
+
+    function filterEntries() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const selectedTag = tagFilter.value.toLowerCase().trim();
+        let hasVisibleEntries = false;
+
+        entries.forEach(entry => {
+            const websiteName = entry.querySelector('.website-name').textContent.toLowerCase();
+            const tags = Array.from(entry.querySelectorAll('.badge'))
+                .map(tag => tag.textContent.toLowerCase());
+            
+            const matchesSearch = websiteName.includes(searchTerm);
+            const matchesTag = !selectedTag || tags.includes(selectedTag);
+
+            if (matchesSearch && matchesTag) {
+                entry.classList.remove('d-none');
+                hasVisibleEntries = true;
+            } else {
+                entry.classList.add('d-none');
+            }
+        });
+
+        noResults.style.display = hasVisibleEntries ? 'none' : 'block';
+    }
+
+    searchInput.addEventListener('input', filterEntries);
+    tagFilter.addEventListener('change', filterEntries);
+
+    // Initial filter in case there's a value
+    filterEntries();
+});
+</script>
+{% endblock %}
