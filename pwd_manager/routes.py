@@ -124,7 +124,7 @@ def view_password(entry_id):
         flash('Error decrypting password', 'error')
         return redirect(url_for('main.index'))
 
-@main_bp.route('/delete/<int:entry_id>')
+@main_bp.route('/delete/<int:entry_id>', methods=['POST'])
 def delete_password(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
