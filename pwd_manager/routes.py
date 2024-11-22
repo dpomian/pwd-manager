@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from pwd_manager import db
 from pwd_manager.models import User, PasswordEntry
 from pwd_manager.utils.crypto import encrypt_password, decrypt_password
+from pwd_manager.utils.password_generator import generate_password
 import qrcode
 from io import BytesIO
 import base64
@@ -126,6 +127,22 @@ def view_password(entry_id):
         flash('Error decrypting password', 'error')
         return redirect(url_for('main.index'))
 
+@main_bp.route('/generate_password')
+def generate_password_route():
+    def generate_group():
+        # Define character set: lowercase, uppercase, and numbers
+        chars = string.ascii_letters + string.digits
+        # Random length between 4 and 6
+        length = random.randint(4, 6)
+        return ''.join(random.choice(chars) for _ in range(length))
+    
+    # Generate between 3 to 5 groups
+    num_groups = random.randint(3, 5)
+    # Generate groups and join them with hyphens
+    password = '-'.join(generate_group() for _ in range(num_groups))
+    
+    return jsonify({'password': password})
+
 @main_bp.route('/delete/<int:entry_id>', methods=['POST'])
 def delete_password(entry_id):
     if 'user_id' not in session:
@@ -142,19 +159,3 @@ def delete_password(entry_id):
     
     flash('Password entry deleted successfully', 'success')
     return redirect(url_for('main.index'))
-
-@main_bp.route('/generate_password')
-def generate_password():
-    def generate_group():
-        # Define character set: lowercase, uppercase, and numbers
-        chars = string.ascii_letters + string.digits
-        # Random length between 4 and 6
-        length = random.randint(4, 6)
-        return ''.join(random.choice(chars) for _ in range(length))
-    
-    # Generate between 3 to 5 groups
-    num_groups = random.randint(3, 5)
-    # Generate groups and join them with hyphens
-    password = '-'.join(generate_group() for _ in range(num_groups))
-    
-    return jsonify({'password': password})
