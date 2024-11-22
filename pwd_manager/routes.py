@@ -143,6 +143,46 @@ def generate_password_route():
     
     return jsonify({'password': password})
 
+@main_bp.route('/edit/<int:entry_id>', methods=['GET', 'POST'])
+def edit_password(entry_id):
+    if 'user_id' not in session:
+        return redirect(url_for('auth.login'))
+    
+    entry = PasswordEntry.query.get_or_404(entry_id)
+    
+    # Ensure the user owns this password entry
+    if entry.user_id != session['user_id']:
+        flash('You do not have permission to edit this entry.', 'danger')
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'POST':
+        # Get the encryption key
+        encryption_key = get_user_encryption_key()
+        if not encryption_key:
+            flash('Error: Could not retrieve encryption key.', 'danger')
+            return redirect(url_for('main.index'))
+        
+        try:
+            # Update the entry
+            entry.website = request.form['website']
+            entry.username = request.form['username']
+            entry.encrypted_password = encrypt_password(encryption_key, request.form['password'])
+            entry.tags = request.form['tags']
+            
+            db.session.commit()
+            flash('Password entry updated successfully!', 'success')
+            return redirect(url_for('main.index'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating password entry: {str(e)}', 'danger')
+            return redirect(url_for('main.edit_password', entry_id=entry_id))
+    
+    # For GET request, decrypt the password for display
+    encryption_key = get_user_encryption_key()
+    decrypted_password = decrypt_password(encryption_key, entry.encrypted_password) if encryption_key else ''
+    
+    return render_template('edit_password.html', entry=entry, decrypted_password=decrypted_password)
+
 @main_bp.route('/delete/<int:entry_id>', methods=['POST'])
 def delete_password(entry_id):
     if 'user_id' not in session:
