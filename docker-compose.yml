@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    ports:
+      - "${PWD_MANAGER_PORT:-5000}:5000"
+    volumes:
+      - ${PWD_MANAGER_DB_PATH:-./instance}:/app/instance
+    environment:
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:-default-secret-key-change-in-production}
+    restart: unless-stopped
