@@ -1,4 +1,5 @@
 flask==2.3.2
+werkzeug==2.3.3
 flask-sqlalchemy==3.0.3
 flask-bcrypt==1.0.1
 python-dotenv==1.0.0

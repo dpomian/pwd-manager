@@ -25,15 +25,8 @@ def register():
             flash('Username already exists', 'error')
             return redirect(url_for('auth.register'))
 
-        hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-        encryption_key = generate_key()
-        
-        new_user = User(
-            username=username,
-            password=hashed_password,
-            encryption_key=encryption_key.decode()
-        )
-        
+        # Create new user with password
+        new_user = User(username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
         
@@ -50,12 +43,13 @@ def login():
         
         user = User.query.filter_by(username=username).first()
         
-        if user and bcrypt.check_password_hash(user.password, password):
+        if user and user.check_password(password):
             session['user_id'] = user.id
             flash('Login successful!', 'success')
             return redirect(url_for('main.index'))
         else:
             flash('Invalid username or password', 'error')
+            return render_template('login.html')
             
     return render_template('login.html')
 
