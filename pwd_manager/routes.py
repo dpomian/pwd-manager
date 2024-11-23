@@ -106,17 +106,27 @@ def view_password(entry_id):
     
     try:
         decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        print(f"Debug - Password to encode: {decrypted_password}")  # Debug log
         
-        # Generate QR code
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        qr.add_data(f"Website: {entry.website}\nUsername: {entry.username}\nPassword: {decrypted_password}")
+        # Generate QR code with just the password
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(decrypted_password)
         qr.make(fit=True)
+        
+        # Verify QR code content
+        qr_data = qr.data_list[0].data.decode('utf-8') if qr.data_list else "No data"
+        print(f"Debug - QR code content verification: {qr_data}")  # Debug log
         
         img = qr.make_image(fill_color="black", back_color="white")
         
         # Convert QR code to base64 string
         buffered = BytesIO()
-        img.save(buffered)
+        img.save(buffered, format="PNG")
         qr_base64 = base64.b64encode(buffered.getvalue()).decode()
         
         return render_template('view_password.html', 
@@ -124,6 +134,7 @@ def view_password(entry_id):
                              password=decrypted_password,
                              qr_code=qr_base64)
     except Exception as e:
+        print(f"Debug - Error: {str(e)}")  # Debug log
         flash('Error decrypting password', 'error')
         return redirect(url_for('main.index'))
 
