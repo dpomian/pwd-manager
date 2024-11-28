@@ -1,0 +1,185 @@
+/* Critical theme colors - applied immediately */
+html {
+    background-color: #ffffff;
+}
+
+html[data-theme="dark"] {
+    background-color: #1a1a1a;
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) {
+        background-color: #1a1a1a;
+    }
+}
+
+/* Theme variables */
+:root {
+    --bg-color: #ffffff;
+    --text-color: #333333;
+    --card-bg: #f8f9fa;
+    --border-color: #dee2e6;
+    --primary-color: #0d6efd;
+    --danger-color: #dc3545;
+    --success-color: #198754;
+    --list-group-bg: #ffffff;
+    --list-group-hover: #f8f9fa;
+    --input-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+    --bg-color: #1a1a1a;
+    --text-color: #ffffff;
+    --card-bg: #2d2d2d;
+    --border-color: #404040;
+    --primary-color: #0d6efd;
+    --danger-color: #dc3545;
+    --success-color: #198754;
+    --list-group-bg: #2d2d2d;
+    --list-group-hover: #363636;
+    --input-bg: #363636;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+.table {
+    color: var(--text-color);
+}
+
+.table td, .table th {
+    border-color: var(--border-color);
+}
+
+.form-control {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-control:focus {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.list-group-item {
+    background-color: var(--list-group-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.list-group-item-action:hover,
+.list-group-item-action:focus {
+    background-color: var(--list-group-hover);
+    color: var(--text-color);
+}
+
+.list-group-item a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.list-group-item a:hover {
+    text-decoration: underline;
+}
+
+.input-group-text {
+    background-color: var(--list-group-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-select {
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.form-select:focus {
+    background-color: var(--input-bg);
+    border-color: var(--primary-color);
+    color: var(--text-color);
+}
+
+/* Dark mode toggle button */
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+    opacity: 0.8;
+}
+
+/* Style for the copy button */
+.btn-outline-secondary {
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--list-group-hover);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+/* Style for alerts in dark mode */
+.alert-info {
+    background-color: var(--list-group-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+/* Style for View and Edit buttons */
+[data-theme="dark"] .btn-info,
+[data-theme="dark"] .btn-primary {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-info:hover,
+[data-theme="dark"] .btn-primary:hover {
+    color: #ffffff;
+    opacity: 0.9;
+}
+
+/* Style for form labels and card content */
+[data-theme="dark"] .form-label,
+[data-theme="dark"] .card-title,
+[data-theme="dark"] .text-muted {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .card {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .card-body {
+    color: var(--text-color);
+}
+
+/* Prevent flash during page transitions */
+html {
+    background-color: var(--bg-color);
+}
+
+html[data-theme="dark"] {
+    color-scheme: dark;
+}
