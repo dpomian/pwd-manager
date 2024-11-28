@@ -204,3 +204,23 @@ def delete_password(entry_id):
     
     flash('Password entry deleted successfully', 'success')
     return redirect(url_for('main.index'))
+
+@main_bp.route('/copy_password/<int:entry_id>')
+def copy_password(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    entry = PasswordEntry.query.get_or_404(entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        return jsonify({'password': decrypted_password})
+    except Exception as e:
+        return jsonify({'error': 'Error decrypting password'}), 500

@@ -60,6 +60,7 @@
                                 {% endif %}
                             </div>
                             <div class="flex-shrink-0">
+                                <button onclick="copyPassword({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">Copy Pwd</button>
                                 <a href="{{ url_for('main.view_password', entry_id=entry.id) }}" class="btn btn-sm btn-info me-2">View</a>
                                 <a href="{{ url_for('main.edit_password', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
                                 <form action="{{ url_for('main.delete_password', entry_id=entry.id) }}" method="POST" style="display:inline;">
@@ -117,5 +118,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial filter in case there's a value
     filterEntries();
 });
+
+async function copyPassword(entryId, button) {
+    try {
+        const response = await fetch(`/copy_password/${entryId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+            await navigator.clipboard.writeText(data.password);
+            
+            // Visual feedback
+            const originalText = button.textContent;
+            button.textContent = 'Copied!';
+            button.classList.add('btn-success');
+            button.classList.remove('btn-secondary');
+            
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.classList.remove('btn-success');
+                button.classList.add('btn-secondary');
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Failed to copy password');
+        }
+    } catch (error) {
+        alert('Error copying password: ' + error.message);
+    }
+}
 </script>
 {% endblock %}
