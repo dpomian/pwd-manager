@@ -106,7 +106,6 @@ def view_password(entry_id):
     
     try:
         decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
-        print(f"Debug - Password to encode: {decrypted_password}")  # Debug log
         
         # Generate QR code with just the password
         qr = qrcode.QRCode(
@@ -117,10 +116,6 @@ def view_password(entry_id):
         )
         qr.add_data(decrypted_password)
         qr.make(fit=True)
-        
-        # Verify QR code content
-        qr_data = qr.data_list[0].data.decode('utf-8') if qr.data_list else "No data"
-        print(f"Debug - QR code content verification: {qr_data}")  # Debug log
         
         img = qr.make_image(fill_color="black", back_color="white")
         
@@ -134,7 +129,6 @@ def view_password(entry_id):
                              password=decrypted_password,
                              qr_code=qr_base64)
     except Exception as e:
-        print(f"Debug - Error: {str(e)}")  # Debug log
         flash('Error decrypting password', 'error')
         return redirect(url_for('main.index'))
 
@@ -210,3 +204,23 @@ def delete_password(entry_id):
     
     flash('Password entry deleted successfully', 'success')
     return redirect(url_for('main.index'))
+
+@main_bp.route('/copy_password/<int:entry_id>')
+def copy_password(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    entry = PasswordEntry.query.get_or_404(entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        return jsonify({'password': decrypted_password})
+    except Exception as e:
+        return jsonify({'error': 'Error decrypting password'}), 500
