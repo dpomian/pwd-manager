@@ -13,14 +13,43 @@ on:
         - staging
 
 jobs:
+  generate-release-version:
+    runs-on: ubuntu-latest
+    outputs:
+      generated_version: ${{ steps.output-version.outputs.generated_version }}
+    permissions:
+      contents: write
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - 
+        name: Generate version
+        uses: paulhatch/semantic-version@v5.4.0
+        id: version
+        with:
+          tag_prefix: "v"
+          major_pattern: "/((BREAKING CHANGE|BREAKING|breaking|MAJOR|major):?|\\S*!).*/"
+          minor_pattern: '/((FEATURE|feature|MINOR|minor|FEAT|feat):?|\\S*?)/'
+          version_format: '${major}.${minor}.${patch}'
+      -
+        name: Output version
+        id: output-version
+        run: |
+          echo "generated_version=${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
+  
+    
   build-and-publish:
+    needs: [generate-release-version]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -35,27 +64,39 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install semantic-release dependencies
-        run: |
-          npm install -g semantic-release @semantic-release/git @semantic-release/github @semantic-release/commit-analyzer @semantic-release/release-notes-generator
-
-      - name: Determine version
-        id: semantic
-        run: |
-          echo "::set-output name=version::$(npx semantic-release --dry-run | grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' || echo '0.1.0')"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}          
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.semantic.outputs.version }}
+            ghcr.io/${{ github.repository }}:${{ needs.generate-release-version.outputs.generated_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  create-release:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    needs: [generate-release-version,build-and-publish]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.generate-release-version.outputs.generated_version }}
+          release_name: v${{ needs.generate-release-version.outputs.generated_version }}
+          
