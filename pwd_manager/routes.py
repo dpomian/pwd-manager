@@ -224,3 +224,41 @@ def copy_password(entry_id):
         return jsonify({'password': decrypted_password})
     except Exception as e:
         return jsonify({'error': 'Error decrypting password'}), 500
+
+@main_bp.route('/qr_code/<int:entry_id>')
+def get_qr_code(entry_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    entry = PasswordEntry.query.get_or_404(entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        
+        # Generate QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(decrypted_password)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert QR code to base64 string
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        qr_base64 = base64.b64encode(buffered.getvalue()).decode()
+        
+        return jsonify({'qr_code': qr_base64})
+    except Exception as e:
+        return jsonify({'error': 'Error generating QR code'}), 500

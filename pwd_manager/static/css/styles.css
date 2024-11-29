@@ -387,3 +387,26 @@ html {
 html[data-theme="dark"] {
     color-scheme: dark;
 }
+
+/* Modal styles for all themes */
+.modal-content {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+}
+
+.modal-header {
+    border-bottom-color: var(--border-color);
+}
+
+.modal-footer {
+    border-top-color: var(--border-color);
+}
+
+.btn-close {
+    filter: var(--text-color) === '#ffffff' ? invert(1) : none;
+}
+
+/* Ensure text-muted uses theme colors */
+[data-theme="hacker"] .text-muted {
+    color: var(--text-color) !important;
+}
