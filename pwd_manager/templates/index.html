@@ -63,6 +63,7 @@
                             </div>
                             <div class="flex-shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="copyPassword({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">Copy Pwd</button>
+                                <button onclick="showQRCode({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">QR Code</button>
                                 <a href="{{ url_for('main.edit_password', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
                                 <form action="{{ url_for('main.delete_password', entry_id=entry.id) }}" method="POST" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this password?')">Delete</button>
@@ -145,6 +146,56 @@ async function copyPassword(entryId, button) {
     } catch (error) {
         alert('Error copying password: ' + error.message);
     }
+}
+
+function showQRCode(entryId, button) {
+    fetch(`/qr_code/${entryId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Remove any existing QR code modal
+            const existingModal = document.getElementById('qrCodeModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'qrCodeModal';
+            modal.className = 'modal fade';
+            modal.setAttribute('tabindex', '-1');
+            modal.innerHTML = `
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Password QR Code</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body text-center">
+                            <img src="data:image/png;base64,${data.qr_code}" alt="Password QR Code" class="img-fluid" style="max-width: 200px;">
+                            <p class="text-muted mt-2"><small>Scan with your mobile device to copy the password</small></p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Initialize and show the modal
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+            
+            // Remove modal from DOM when it's hidden
+            modal.addEventListener('hidden.bs.modal', function () {
+                modal.remove();
+            });
+        })
+        .catch(error => {
+            alert('Error generating QR code: ' + error.message);
+        });
 }
 
 function handleEntryClick(event, url) {
