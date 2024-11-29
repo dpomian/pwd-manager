@@ -41,13 +41,15 @@
             <div class="list-group" id="passwordList">
                 {% if entries %}
                     {% for entry in entries %}
-                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center password-entry">
+                        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center password-entry"
+                             onclick="handleEntryClick(event, '{{ url_for('main.view_password', entry_id=entry.id) }}')">
                             <div class="flex-grow-1">
                                 <h5 class="mb-1 website-name">
                                     <a href="{{ 'https://' + entry.website if not entry.website.startswith(('http://', 'https://')) else entry.website }}" 
-                                       class="text-decoration-none" 
+                                       class="text-decoration-none website-link" 
                                        target="_blank" 
-                                       rel="noopener noreferrer">
+                                       rel="noopener noreferrer"
+                                       onclick="event.stopPropagation()">
                                         {{ entry.website }}
                                     </a>
                                 </h5>
@@ -59,9 +61,8 @@
                                     </div>
                                 {% endif %}
                             </div>
-                            <div class="flex-shrink-0">
+                            <div class="flex-shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="copyPassword({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">Copy Pwd</button>
-                                <a href="{{ url_for('main.view_password', entry_id=entry.id) }}" class="btn btn-sm btn-info me-2">View</a>
                                 <a href="{{ url_for('main.edit_password', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
                                 <form action="{{ url_for('main.delete_password', entry_id=entry.id) }}" method="POST" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this password?')">Delete</button>
@@ -144,6 +145,13 @@ async function copyPassword(entryId, button) {
     } catch (error) {
         alert('Error copying password: ' + error.message);
     }
+}
+
+function handleEntryClick(event, url) {
+    if (event.target.classList.contains('website-link') || event.target.classList.contains('btn')) {
+        return;
+    }
+    window.location.href = url;
 }
 </script>
 {% endblock %}
