@@ -350,6 +350,19 @@ body {
     opacity: 0.9;
 }
 
+/* Fix button text colors */
+[data-theme="light"] .btn-primary {
+    color: #fff !important;
+}
+
+[data-theme="light"] .btn-secondary {
+    color: #fff !important;
+}
+
+[data-theme="light"] .btn-danger {
+    color: #fff !important;
+}
+
 /* Style for form labels and card content */
 [data-theme="dark"] .form-label,
 [data-theme="dark"] .card-title,
