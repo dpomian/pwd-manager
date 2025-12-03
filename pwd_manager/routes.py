@@ -51,7 +51,7 @@ def index():
     return render_template('index.html', entries=entries, all_tags=sorted(all_tags))
 
 @main_bp.route('/add', methods=['GET', 'POST'])
-def add_password():
+def add_secret():
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
@@ -64,7 +64,7 @@ def add_password():
         
         if not website or not username or not password:
             flash('All fields except tags are required', 'error')
-            return redirect(url_for('main.add_password'))
+            return redirect(url_for('main.add_secret'))
         
         encryption_key = get_user_encryption_key()
         if not encryption_key:
@@ -86,13 +86,13 @@ def add_password():
         db.session.add(new_entry)
         db.session.commit()
         
-        flash('Password entry added successfully!', 'success')
+        flash('Secret entry added successfully!', 'success')
         return redirect(url_for('main.index'))
     
-    return render_template('add_password.html')
+    return render_template('add_secret.html')
 
 @main_bp.route('/view/<int:entry_id>')
-def view_password(entry_id):
+def view_secret(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
@@ -129,7 +129,7 @@ def view_password(entry_id):
         
         decrypted_notes = decrypt_data(encryption_key, entry.notes) if entry.notes else None
         
-        return render_template('view_password.html', 
+        return render_template('view_secret.html', 
                              entry=entry, 
                              password=decrypted_password,
                              notes=decrypted_notes,
@@ -155,13 +155,13 @@ def generate_password_route():
     return jsonify({'password': password})
 
 @main_bp.route('/edit/<int:entry_id>', methods=['GET', 'POST'])
-def edit_password(entry_id):
+def edit_secret(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
     entry = SecretEntry.query.get_or_404(entry_id)
     
-    # Ensure the user owns this password entry
+    # Ensure the user owns this secret entry
     if entry.user_id != session['user_id']:
         flash('You do not have permission to edit this entry.', 'danger')
         return redirect(url_for('main.index'))
@@ -183,22 +183,22 @@ def edit_password(entry_id):
             entry.notes = encrypt_data(encryption_key, notes) if notes else None
             
             db.session.commit()
-            flash('Password entry updated successfully!', 'success')
+            flash('Secret entry updated successfully!', 'success')
             return redirect(url_for('main.index'))
         except Exception as e:
             db.session.rollback()
-            flash(f'Error updating password entry: {str(e)}', 'danger')
-            return redirect(url_for('main.edit_password', entry_id=entry_id))
+            flash(f'Error updating secret entry: {str(e)}', 'danger')
+            return redirect(url_for('main.edit_secret', entry_id=entry_id))
     
     # For GET request, decrypt the password and notes for display
     encryption_key = get_user_encryption_key()
     decrypted_password = decrypt_data(encryption_key, entry.encrypted_password) if encryption_key else ''
     decrypted_notes = decrypt_data(encryption_key, entry.notes) if encryption_key and entry.notes else ''
     
-    return render_template('edit_password.html', entry=entry, decrypted_password=decrypted_password, decrypted_notes=decrypted_notes)
+    return render_template('edit_secret.html', entry=entry, decrypted_password=decrypted_password, decrypted_notes=decrypted_notes)
 
 @main_bp.route('/delete/<int:entry_id>', methods=['POST'])
-def delete_password(entry_id):
+def delete_secret(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
@@ -211,7 +211,7 @@ def delete_password(entry_id):
     db.session.delete(entry)
     db.session.commit()
     
-    flash('Password entry deleted successfully', 'success')
+    flash('Secret entry deleted successfully', 'success')
     return redirect(url_for('main.index'))
 
 @main_bp.route('/copy_password/<int:entry_id>')

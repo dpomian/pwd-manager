@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}My Passwords - Password Manager{% endblock %}
+{% block title %}My Secrets - Password Manager{% endblock %}
 
 {% block content %}
     <div class="row">
         <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>My Passwords</h2>
+                <h2>My Secrets</h2>
                 <div>
-                    <a href="{{ url_for('main.add_password') }}" class="btn btn-primary me-2">Add New Password</a>
+                    <a href="{{ url_for('main.add_secret') }}" class="btn btn-primary me-2">Add New Secret</a>
                     <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
                 </div>
             </div>
@@ -35,14 +35,14 @@
             </div>
 
             <div id="noResults" class="alert alert-info d-none">
-                No passwords match your search criteria.
+                No secrets match your search criteria.
             </div>
 
             <div class="list-group" id="passwordList">
                 {% if entries %}
                     {% for entry in entries %}
                         <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center password-entry"
-                             onclick="handleEntryClick(event, '{{ url_for('main.view_password', entry_id=entry.id) }}')">
+                             onclick="handleEntryClick(event, '{{ url_for('main.view_secret', entry_id=entry.id) }}')">
                             <div class="flex-grow-1">
                                 <h5 class="mb-1 website-name">
                                     <a href="{{ 'https://' + entry.website if not entry.website.startswith(('http://', 'https://')) else entry.website }}" 
@@ -64,17 +64,17 @@
                             <div class="flex-shrink-0" onclick="event.stopPropagation()">
                                 <button onclick="copyPassword({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">Copy Pwd</button>
                                 <button onclick="showQRCode({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">QR Code</button>
-                                <a href="{{ url_for('main.edit_password', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
-                                <form action="{{ url_for('main.delete_password', entry_id=entry.id) }}" method="POST" style="display:inline;">
-                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this password?')">Delete</button>
+                                <a href="{{ url_for('main.edit_secret', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
+                                <form action="{{ url_for('main.delete_secret', entry_id=entry.id) }}" method="POST" style="display:inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this secret?')">Delete</button>
                                 </form>
                             </div>
                         </div>
                     {% endfor %}
                 {% else %}
                     <div class="alert alert-info text-center">
-                        <p>You haven't added any passwords yet.</p>
-                        <a href="{{ url_for('main.add_password') }}" class="btn btn-primary mt-2">Add Your First Password</a>
+                        <p>You haven't added any secrets yet.</p>
+                        <a href="{{ url_for('main.add_secret') }}" class="btn btn-primary mt-2">Add Your First Secret</a>
                     </div>
                 {% endif %}
             </div>
