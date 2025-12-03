@@ -1,12 +1,14 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 import os
 
 # Initialize extensions
 db = SQLAlchemy()
 bcrypt = Bcrypt()
+migrate = Migrate()
 
 def create_app(config_name=None):
     # Load environment variables
@@ -27,6 +29,7 @@ def create_app(config_name=None):
         
         # Configure database
         db_type = os.getenv('DATABASE_TYPE', 'sqlite')
+        print(f"Instance path: {app.instance_path}")
         db_path = os.getenv('DATABASE_PATH', os.path.join(app.instance_path, 'passwords.db'))
         
         # Ensure the directory exists
@@ -43,6 +46,7 @@ def create_app(config_name=None):
     # Initialize extensions with app
     db.init_app(app)
     bcrypt.init_app(app)
+    migrate.init_app(app, db)
 
     # Register blueprints
     from pwd_manager.auth.routes import auth_bp

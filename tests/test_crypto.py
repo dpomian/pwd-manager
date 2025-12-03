@@ -1,6 +1,6 @@
 import unittest
 import base64
-from pwd_manager.utils.crypto import encrypt_password, decrypt_password, generate_key, derive_key
+from pwd_manager.utils.crypto import encrypt_data, decrypt_data, generate_key, derive_key
 from cryptography.fernet import Fernet
 
 class TestCrypto(unittest.TestCase):
@@ -18,15 +18,15 @@ class TestCrypto(unittest.TestCase):
     def test_encryption_decryption(self):
         """Test that encryption followed by decryption returns the original password"""
         for password in self.test_passwords:
-            encrypted = encrypt_password(self.test_key, password)
-            decrypted = decrypt_password(self.test_key, encrypted)
+            encrypted = encrypt_data(self.test_key, password)
+            decrypted = decrypt_data(self.test_key, encrypted)
             self.assertEqual(password, decrypted)
     
     def test_different_passwords_different_encryption(self):
         """Test that different passwords produce different encrypted results"""
         encrypted_passwords = set()
         for password in self.test_passwords:
-            encrypted = encrypt_password(self.test_key, password)
+            encrypted = encrypt_data(self.test_key, password)
             encrypted_passwords.add(encrypted)
         
         # Each password should produce a unique encryption
@@ -36,11 +36,11 @@ class TestCrypto(unittest.TestCase):
         """Test that decryption with wrong key fails"""
         wrong_key = generate_key()  # Generate another valid key
         password = 'test password'
-        encrypted = encrypt_password(self.test_key, password)
+        encrypted = encrypt_data(self.test_key, password)
         
         # Attempting to decrypt with wrong key should raise an exception
         with self.assertRaises(Exception):
-            decrypt_password(wrong_key, encrypted)
+            decrypt_data(wrong_key, encrypted)
     
     def test_derive_key(self):
         """Test that derived keys are valid Fernet keys"""

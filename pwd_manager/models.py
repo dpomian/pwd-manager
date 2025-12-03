@@ -7,7 +7,7 @@ class User(db.Model):
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     encryption_key = db.Column(db.String(255), nullable=False)
-    passwords = db.relationship('PasswordEntry', backref='owner', lazy=True)
+    passwords = db.relationship('SecretEntry', backref='owner', lazy=True)
 
     def __init__(self, username, password=None):
         self.username = username
@@ -28,10 +28,13 @@ class User(db.Model):
         """Check if the provided password is correct"""
         return bcrypt.check_password_hash(self.password, password)
 
-class PasswordEntry(db.Model):
+class SecretEntry(db.Model):
+    __tablename__ = 'password_entry'  # Keep existing table name to preserve data
+    
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     website = db.Column(db.String(100), nullable=False)
     username = db.Column(db.String(100), nullable=False)
     encrypted_password = db.Column(db.String(255), nullable=False)
     tags = db.Column(db.String(255), nullable=True)  # Store tags as comma-separated string
+    notes = db.Column(db.Text, nullable=True)

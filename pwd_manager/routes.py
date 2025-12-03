@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from pwd_manager import db
-from pwd_manager.models import User, PasswordEntry
-from pwd_manager.utils.crypto import encrypt_password, decrypt_password
+from pwd_manager.models import User, SecretEntry
+from pwd_manager.utils.crypto import encrypt_data, decrypt_data
 from pwd_manager.utils.password_generator import generate_password
 import qrcode
 from io import BytesIO
@@ -29,17 +29,17 @@ def index():
     search_query = request.args.get('search', '').lower()
     tag_filter = request.args.get('tag', '')
     
-    passwords = PasswordEntry.query.filter_by(user_id=user.id)
+    passwords = SecretEntry.query.filter_by(user_id=user.id)
     
     if search_query:
         passwords = passwords.filter(
-            (PasswordEntry.website.ilike(f'%{search_query}%')) |
-            (PasswordEntry.username.ilike(f'%{search_query}%')) |
-            (PasswordEntry.tags.ilike(f'%{search_query}%'))
+            (SecretEntry.website.ilike(f'%{search_query}%')) |
+            (SecretEntry.username.ilike(f'%{search_query}%')) |
+            (SecretEntry.tags.ilike(f'%{search_query}%'))
         )
     
     if tag_filter:
-        passwords = passwords.filter(PasswordEntry.tags.ilike(f'%{tag_filter}%'))
+        passwords = passwords.filter(SecretEntry.tags.ilike(f'%{tag_filter}%'))
     
     # Get all unique tags for the filter dropdown
     all_tags = set()
@@ -60,6 +60,7 @@ def add_password():
         username = request.form.get('username')
         password = request.form.get('password')
         tags = request.form.get('tags')
+        notes = request.form.get('notes')
         
         if not website or not username or not password:
             flash('All fields except tags are required', 'error')
@@ -70,14 +71,16 @@ def add_password():
             flash('Error retrieving encryption key', 'error')
             return redirect(url_for('main.index'))
         
-        encrypted_password = encrypt_password(encryption_key, password)
+        encrypted_password = encrypt_data(encryption_key, password)
+        encrypted_notes = encrypt_data(encryption_key, notes) if notes else None
         
-        new_entry = PasswordEntry(
+        new_entry = SecretEntry(
             user_id=session['user_id'],
             website=website,
             username=username,
             encrypted_password=encrypted_password,
-            tags=tags
+            tags=tags,
+            notes=encrypted_notes
         )
         
         db.session.add(new_entry)
@@ -93,7 +96,7 @@ def view_password(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
-    entry = PasswordEntry.query.get_or_404(entry_id)
+    entry = SecretEntry.query.get_or_404(entry_id)
     
     if entry.user_id != session['user_id']:
         flash('Unauthorized access', 'error')
@@ -105,7 +108,7 @@ def view_password(entry_id):
         return redirect(url_for('main.index'))
     
     try:
-        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        decrypted_password = decrypt_data(encryption_key, entry.encrypted_password)
         
         # Generate QR code with just the password
         qr = qrcode.QRCode(
@@ -124,9 +127,12 @@ def view_password(entry_id):
         img.save(buffered, format="PNG")
         qr_base64 = base64.b64encode(buffered.getvalue()).decode()
         
+        decrypted_notes = decrypt_data(encryption_key, entry.notes) if entry.notes else None
+        
         return render_template('view_password.html', 
                              entry=entry, 
                              password=decrypted_password,
+                             notes=decrypted_notes,
                              qr_code=qr_base64)
     except Exception as e:
         flash('Error decrypting password', 'error')
@@ -153,7 +159,7 @@ def edit_password(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
-    entry = PasswordEntry.query.get_or_404(entry_id)
+    entry = SecretEntry.query.get_or_404(entry_id)
     
     # Ensure the user owns this password entry
     if entry.user_id != session['user_id']:
@@ -171,8 +177,10 @@ def edit_password(entry_id):
             # Update the entry
             entry.website = request.form['website']
             entry.username = request.form['username']
-            entry.encrypted_password = encrypt_password(encryption_key, request.form['password'])
+            entry.encrypted_password = encrypt_data(encryption_key, request.form['password'])
             entry.tags = request.form['tags']
+            notes = request.form.get('notes')
+            entry.notes = encrypt_data(encryption_key, notes) if notes else None
             
             db.session.commit()
             flash('Password entry updated successfully!', 'success')
@@ -182,18 +190,19 @@ def edit_password(entry_id):
             flash(f'Error updating password entry: {str(e)}', 'danger')
             return redirect(url_for('main.edit_password', entry_id=entry_id))
     
-    # For GET request, decrypt the password for display
+    # For GET request, decrypt the password and notes for display
     encryption_key = get_user_encryption_key()
-    decrypted_password = decrypt_password(encryption_key, entry.encrypted_password) if encryption_key else ''
+    decrypted_password = decrypt_data(encryption_key, entry.encrypted_password) if encryption_key else ''
+    decrypted_notes = decrypt_data(encryption_key, entry.notes) if encryption_key and entry.notes else ''
     
-    return render_template('edit_password.html', entry=entry, decrypted_password=decrypted_password)
+    return render_template('edit_password.html', entry=entry, decrypted_password=decrypted_password, decrypted_notes=decrypted_notes)
 
 @main_bp.route('/delete/<int:entry_id>', methods=['POST'])
 def delete_password(entry_id):
     if 'user_id' not in session:
         return redirect(url_for('auth.login'))
     
-    entry = PasswordEntry.query.get_or_404(entry_id)
+    entry = SecretEntry.query.get_or_404(entry_id)
     
     if entry.user_id != session['user_id']:
         flash('Unauthorized access', 'error')
@@ -210,7 +219,7 @@ def copy_password(entry_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Not authenticated'}), 401
     
-    entry = PasswordEntry.query.get_or_404(entry_id)
+    entry = SecretEntry.query.get_or_404(entry_id)
     
     if entry.user_id != session['user_id']:
         return jsonify({'error': 'Unauthorized access'}), 403
@@ -220,7 +229,7 @@ def copy_password(entry_id):
         return jsonify({'error': 'Error retrieving encryption key'}), 500
     
     try:
-        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        decrypted_password = decrypt_data(encryption_key, entry.encrypted_password)
         return jsonify({'password': decrypted_password})
     except Exception as e:
         return jsonify({'error': 'Error decrypting password'}), 500
@@ -230,7 +239,7 @@ def get_qr_code(entry_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
     
-    entry = PasswordEntry.query.get_or_404(entry_id)
+    entry = SecretEntry.query.get_or_404(entry_id)
     
     if entry.user_id != session['user_id']:
         return jsonify({'error': 'Unauthorized'}), 401
@@ -240,7 +249,7 @@ def get_qr_code(entry_id):
         return jsonify({'error': 'Error retrieving encryption key'}), 500
     
     try:
-        decrypted_password = decrypt_password(encryption_key, entry.encrypted_password)
+        decrypted_password = decrypt_data(encryption_key, entry.encrypted_password)
         
         # Generate QR code
         qr = qrcode.QRCode(

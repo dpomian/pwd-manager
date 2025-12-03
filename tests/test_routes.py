@@ -1,7 +1,7 @@
 import unittest
 from pwd_manager import create_app, db
-from pwd_manager.models import User, PasswordEntry
-from pwd_manager.utils.crypto import encrypt_password
+from pwd_manager.models import User, SecretEntry
+from pwd_manager.utils.crypto import encrypt_data
 import json
 
 class TestRoutes(unittest.TestCase):
@@ -51,7 +51,7 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Verify password was added
-        entry = PasswordEntry.query.filter_by(website='example.com').first()
+        entry = SecretEntry.query.filter_by(website='example.com').first()
         self.assertIsNotNone(entry)
         self.assertEqual(entry.username, 'user123')
     
@@ -61,8 +61,8 @@ class TestRoutes(unittest.TestCase):
         
         # Add a password entry
         encryption_key = self.test_user.encryption_key.encode()
-        encrypted_password = encrypt_password(encryption_key, 'testpass123')
-        entry = PasswordEntry(
+        encrypted_password = encrypt_data(encryption_key, 'testpass123')
+        entry = SecretEntry(
             user_id=self.test_user.id,
             website='test.com',
             username='testuser',
@@ -82,8 +82,8 @@ class TestRoutes(unittest.TestCase):
         
         # Add a password entry
         encryption_key = self.test_user.encryption_key.encode()
-        encrypted_password = encrypt_password(encryption_key, 'testpass123')
-        entry = PasswordEntry(
+        encrypted_password = encrypt_data(encryption_key, 'testpass123')
+        entry = SecretEntry(
             user_id=self.test_user.id,
             website='delete-test.com',
             username='testuser',
@@ -98,7 +98,7 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Verify entry was deleted
-        deleted_entry = PasswordEntry.query.get(entry.id)
+        deleted_entry = SecretEntry.query.get(entry.id)
         self.assertIsNone(deleted_entry)
 
 if __name__ == '__main__':

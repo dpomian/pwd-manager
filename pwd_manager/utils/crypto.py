@@ -13,24 +13,24 @@ def derive_key(password):
     # Convert to base64 as required by Fernet
     return base64.urlsafe_b64encode(key)
 
-def encrypt_password(key, password):
+def encrypt_data(key, data):
     """Encrypt a password using a Fernet key
     Args:
         key (bytes): A valid Fernet key (32 url-safe base64-encoded bytes)
-        password (str): The password to encrypt
+        data (str): The data to encrypt
     Returns:
-        str: The encrypted password
+        str: The encrypted data
     """
     f = Fernet(key)
-    return f.encrypt(password.encode()).decode()
+    return f.encrypt(data.encode()).decode()
 
-def decrypt_password(key, encrypted_password):
+def decrypt_data(key, encrypted_data):
     """Decrypt a password using a Fernet key
     Args:
         key (bytes): A valid Fernet key (32 url-safe base64-encoded bytes)
-        encrypted_password (str): The encrypted password to decrypt
+        encrypted_data (str): The encrypted data to decrypt
     Returns:
-        str: The decrypted password
+        str: The decrypted data
     """
     f = Fernet(key)
-    return f.decrypt(encrypted_password.encode()).decode()
+    return f.decrypt(encrypted_data.encode()).decode()
