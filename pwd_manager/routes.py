@@ -137,6 +137,7 @@ def view_secret(entry_id):
                              notes=decrypted_notes,
                              qr_code=qr_base64)
     except Exception as e:
+        current_app.logger.error(f'Error decrypting password for entry {entry_id}: {e}', exc_info=True)
         flash('Error decrypting password', 'error')
         return redirect(url_for('main.index'))
 
