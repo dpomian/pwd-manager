@@ -443,3 +443,57 @@ def list_attachments(entry_id):
     } for a in entry.attachments]
     
     return jsonify({'attachments': attachments})
+
+
+@main_bp.route('/attachment/preview/<attachment_id>')
+def preview_attachment(attachment_id):
+    """Get attachment content for preview - returns JSON for images/text, serves file directly for PDFs"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    attachment = Attachment.query.get_or_404(attachment_id)
+    entry = SecretEntry.query.get_or_404(attachment.secret_entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        # Read encrypted file from disk
+        attachments_dir = Path(current_app.config['ATTACHMENTS_DIR'])
+        storage_path = attachments_dir / attachment.storage_filename
+        
+        if not storage_path.exists():
+            return jsonify({'error': 'Attachment file not found'}), 404
+        
+        encrypted_content = storage_path.read_bytes()
+        
+        # Decrypt the file content
+        decrypted_content = decrypt_binary(encryption_key, encrypted_content)
+        
+        mime_type = attachment.mime_type
+        
+        # For PDFs, serve the file directly (browsers need this for native PDF rendering)
+        if mime_type == 'application/pdf':
+            return send_file(
+                BytesIO(decrypted_content),
+                mimetype=mime_type,
+                as_attachment=False,
+                download_name=attachment.original_filename
+            )
+        
+        # For images and text, return as base64 JSON (more efficient for inline display)
+        content_base64 = base64.b64encode(decrypted_content).decode('utf-8')
+        
+        return jsonify({
+            'success': True,
+            'content': content_base64,
+            'mime_type': mime_type,
+            'filename': attachment.original_filename
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Error viewing attachment: {str(e)}'}), 500
