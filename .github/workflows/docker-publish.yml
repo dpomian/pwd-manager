@@ -31,8 +31,8 @@ jobs:
         id: version
         with:
           tag_prefix: "v"
-          major_pattern: "/((BREAKING CHANGE|BREAKING|breaking|MAJOR|major):?|\\S*!).*/"
-          minor_pattern: '/((FEATURE|feature|MINOR|minor|FEAT|feat):?|\\S*?)/'
+          major_pattern: "(BREAKING CHANGE|BREAKING|breaking|MAJOR|major):?"
+          minor_pattern: "(FEATURE|feature|MINOR|minor|FEAT|feat):?"
           version_format: '${major}.${minor}.${patch}'
       -
         name: Output version
