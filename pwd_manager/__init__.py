@@ -11,8 +11,27 @@ bcrypt = Bcrypt()
 migrate = Migrate()
 
 def create_app(config_name=None):
-    # Load environment variables
-    load_dotenv()
+    # Load environment variables based on config
+    # Priority: .env.local > .env.{config_name} > .env
+    env_file = '.env'
+    if config_name and config_name != 'testing':
+        env_file = f'.env.{config_name}'
+    
+    # Check for .env.local first (highest priority for local development)
+    from pathlib import Path
+    base_dir = Path(__file__).resolve().parent.parent
+    local_env = base_dir / '.env.local'
+    config_env = base_dir / env_file
+    
+    if local_env.exists():
+        load_dotenv(local_env, override=True)
+        print(f"Loaded environment from: {local_env}")
+    elif config_env.exists():
+        load_dotenv(config_env, override=True)
+        print(f"Loaded environment from: {config_env}")
+    else:
+        load_dotenv()  # Default .env
+        print("Loaded environment from: .env")
     
     # Initialize Flask app
     app = Flask(__name__)

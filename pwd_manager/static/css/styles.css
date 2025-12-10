@@ -451,3 +451,60 @@ html[data-theme="dark"] {
 [data-theme="dark"] .attachment-item span {
     color: var(--text-color);
 }
+
+/* Attachment preview modal styles */
+.attachment-clickable {
+    cursor: pointer;
+}
+
+.attachment-clickable:hover {
+    text-decoration: underline;
+}
+
+[data-theme="hacker"] .attachment-clickable:hover {
+    text-shadow: 0 0 5px rgba(74, 246, 38, 0.3);
+}
+
+/* Modal spinner color for themes */
+[data-theme="hacker"] .spinner-border {
+    color: #4af626;
+}
+
+[data-theme="dark"] .spinner-border {
+    color: var(--text-color);
+}
+
+/* Preview text area styling */
+#previewText {
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="hacker"] #previewText {
+    font-family: 'Fira Code', monospace;
+    color: #4af626;
+    background-color: #0a0a0a;
+}
+
+/* Modal close button for dark themes */
+[data-theme="dark"] .btn-close,
+[data-theme="hacker"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Navigation buttons disabled state */
+[data-theme="hacker"] .btn:disabled {
+    opacity: 0.3;
+    box-shadow: none;
+}
+
+/* Attachment counter styling */
+#attachmentCounter {
+    color: var(--text-color);
+}
+
+[data-theme="hacker"] #attachmentCounter {
+    font-family: 'Fira Code', monospace;
+    color: #4af626;
+}

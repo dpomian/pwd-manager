@@ -42,6 +42,8 @@ instance/
 # Project specific
 passwords.db
 .env
+.env.local
+.env.production
 *.log
 logs/
 tmp/
