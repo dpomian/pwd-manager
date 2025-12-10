@@ -1,6 +1,5 @@
 from cryptography.fernet import Fernet
 import base64
-import os
 
 def generate_key():
     """Generate a new Fernet key"""
@@ -34,3 +33,27 @@ def decrypt_data(key, encrypted_data):
     """
     f = Fernet(key)
     return f.decrypt(encrypted_data.encode()).decode()
+
+
+def encrypt_binary(key, data: bytes) -> bytes:
+    """Encrypt binary data using a Fernet key
+    Args:
+        key (bytes): A valid Fernet key (32 url-safe base64-encoded bytes)
+        data (bytes): The binary data to encrypt
+    Returns:
+        bytes: The encrypted data
+    """
+    f = Fernet(key)
+    return f.encrypt(data)
+
+
+def decrypt_binary(key, encrypted_data: bytes) -> bytes:
+    """Decrypt binary data using a Fernet key
+    Args:
+        key (bytes): A valid Fernet key (32 url-safe base64-encoded bytes)
+        encrypted_data (bytes): The encrypted binary data to decrypt
+    Returns:
+        bytes: The decrypted binary data
+    """
+    f = Fernet(key)
+    return f.decrypt(encrypted_data)

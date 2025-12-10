@@ -421,3 +421,33 @@ html[data-theme="dark"] {
 [data-theme="hacker"] .text-muted {
     color: var(--text-color) !important;
 }
+
+/* Attachment item styles */
+.attachment-item {
+    color: var(--text-color);
+}
+
+.attachment-item span {
+    color: var(--text-color);
+}
+
+[data-theme="hacker"] .attachment-item {
+    color: #4af626;
+    font-family: 'Fira Code', monospace;
+}
+
+[data-theme="hacker"] .attachment-item span {
+    color: #4af626;
+}
+
+[data-theme="hacker"] .attachment-item .text-muted {
+    color: rgba(74, 246, 38, 0.7) !important;
+}
+
+[data-theme="dark"] .attachment-item {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .attachment-item span {
+    color: var(--text-color);
+}
