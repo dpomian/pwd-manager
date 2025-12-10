@@ -82,6 +82,9 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(main_bp)
 
+    # Register Jinja2 filters
+    register_template_filters(app)
+
     # Create database tables
     with app.app_context():
         db.create_all()
@@ -139,3 +142,21 @@ def register_error_handlers(app):
         app.logger.error(f'Unhandled Exception: {error}', exc_info=True)
         db.session.rollback()
         return render_template('errors/500.html'), 500
+
+
+def register_template_filters(app):
+    """Register custom Jinja2 template filters"""
+    import markdown
+    from markupsafe import Markup
+    
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        """Convert markdown text to HTML"""
+        if not text:
+            return ''
+        # Convert markdown to HTML with safe extensions
+        html = markdown.markdown(
+            text,
+            extensions=['fenced_code', 'tables', 'nl2br']
+        )
+        return Markup(html)
