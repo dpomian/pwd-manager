@@ -1,13 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, send_file, jsonify, current_app
 from pwd_manager import db
-from pwd_manager.models import User, SecretEntry
-from pwd_manager.utils.crypto import encrypt_data, decrypt_data
-from pwd_manager.utils.password_generator import generate_password
+from pwd_manager.models import User, SecretEntry, Attachment
+from pwd_manager.utils.crypto import encrypt_data, decrypt_data, encrypt_binary, decrypt_binary
 import qrcode
 from io import BytesIO
+from pathlib import Path
 import base64
 import random
 import string
+import uuid
+import mimetypes
 
 main_bp = Blueprint('main', __name__)
 
@@ -271,3 +273,173 @@ def get_qr_code(entry_id):
         return jsonify({'qr_code': qr_base64})
     except Exception as e:
         return jsonify({'error': 'Error generating QR code'}), 500
+
+
+# ============== Attachment Routes ==============
+
+@main_bp.route('/attachment/upload/<int:entry_id>', methods=['POST'])
+def upload_attachment(entry_id):
+    """Upload and encrypt a file attachment for a secret entry"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    entry = SecretEntry.query.get_or_404(entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not Attachment.allowed_file(file.filename):
+        return jsonify({'error': f'File type not allowed. Allowed types: {", ".join(Attachment.ALLOWED_EXTENSIONS)}'}), 400
+    
+    # Read file content
+    file_content = file.read()
+    
+    if len(file_content) > Attachment.MAX_FILE_SIZE:
+        return jsonify({'error': f'File too large. Maximum size is {Attachment.MAX_FILE_SIZE // (1024*1024)}MB'}), 400
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        # Encrypt the file content
+        encrypted_content = encrypt_binary(encryption_key, file_content)
+        
+        # Generate unique storage filename
+        storage_filename = f"{uuid.uuid4()}.enc"
+        attachments_dir = Path(current_app.config['ATTACHMENTS_DIR'])
+        storage_path = attachments_dir / storage_filename
+        
+        # Write encrypted file to disk
+        storage_path.write_bytes(encrypted_content)
+        
+        # Determine MIME type
+        mime_type = file.content_type or mimetypes.guess_type(file.filename)[0] or 'application/octet-stream'
+        
+        # Create attachment record
+        attachment = Attachment(
+            secret_entry_id=entry_id,
+            original_filename=file.filename,
+            mime_type=mime_type,
+            file_size=len(file_content),
+            storage_filename=storage_filename
+        )
+        
+        db.session.add(attachment)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'attachment': {
+                'id': attachment.id,
+                'filename': attachment.original_filename,
+                'size': attachment.file_size,
+                'mime_type': attachment.mime_type
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error uploading file: {str(e)}'}), 500
+
+
+@main_bp.route('/attachment/download/<attachment_id>')
+def download_attachment(attachment_id):
+    """Download and decrypt a file attachment"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    attachment = Attachment.query.get_or_404(attachment_id)
+    entry = SecretEntry.query.get_or_404(attachment.secret_entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    encryption_key = get_user_encryption_key()
+    if not encryption_key:
+        return jsonify({'error': 'Error retrieving encryption key'}), 500
+    
+    try:
+        # Read encrypted file from disk
+        attachments_dir = Path(current_app.config['ATTACHMENTS_DIR'])
+        storage_path = attachments_dir / attachment.storage_filename
+        
+        if not storage_path.exists():
+            return jsonify({'error': 'Attachment file not found'}), 404
+        
+        encrypted_content = storage_path.read_bytes()
+        
+        # Decrypt the file content
+        decrypted_content = decrypt_binary(encryption_key, encrypted_content)
+        
+        # Send file to client
+        return send_file(
+            BytesIO(decrypted_content),
+            mimetype=attachment.mime_type,
+            as_attachment=True,
+            download_name=attachment.original_filename
+        )
+        
+    except Exception as e:
+        return jsonify({'error': f'Error downloading file: {str(e)}'}), 500
+
+
+@main_bp.route('/attachment/delete/<attachment_id>', methods=['POST'])
+def delete_attachment(attachment_id):
+    """Delete an attachment"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    attachment = Attachment.query.get_or_404(attachment_id)
+    entry = SecretEntry.query.get_or_404(attachment.secret_entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    try:
+        # Delete file from disk
+        attachments_dir = Path(current_app.config['ATTACHMENTS_DIR'])
+        storage_path = attachments_dir / attachment.storage_filename
+        
+        if storage_path.exists():
+            storage_path.unlink()
+        
+        # Delete database record
+        db.session.delete(attachment)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error deleting attachment: {str(e)}'}), 500
+
+
+@main_bp.route('/attachment/list/<int:entry_id>')
+def list_attachments(entry_id):
+    """List all attachments for a secret entry"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    entry = SecretEntry.query.get_or_404(entry_id)
+    
+    if entry.user_id != session['user_id']:
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    attachments = [{
+        'id': a.id,
+        'filename': a.original_filename,
+        'size': a.file_size,
+        'mime_type': a.mime_type,
+        'created_at': a.created_at.isoformat()
+    } for a in entry.attachments]
+    
+    return jsonify({'attachments': attachments})

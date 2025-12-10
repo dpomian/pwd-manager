@@ -42,6 +42,12 @@ def create_app(config_name=None):
             raise ValueError(f'Unsupported database type: {db_type}')
     
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Configure attachments directory
+    attachments_dir = os.path.join(app.instance_path, 'attachments')
+    os.makedirs(attachments_dir, exist_ok=True)
+    app.config['ATTACHMENTS_DIR'] = attachments_dir
+    app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max upload size
 
     # Initialize extensions with app
     db.init_app(app)
