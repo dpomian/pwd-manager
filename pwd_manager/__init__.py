@@ -1,9 +1,11 @@
-from flask import Flask
+from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 import os
+import logging
+from logging.handlers import RotatingFileHandler
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -84,4 +86,56 @@ def create_app(config_name=None):
     with app.app_context():
         db.create_all()
 
+    # Configure logging (only in non-debug mode or if explicitly enabled)
+    if not app.debug or os.getenv('ENABLE_FILE_LOGGING', 'false').lower() == 'true':
+        configure_logging(app)
+
+    # Register error handlers
+    register_error_handlers(app)
+
     return app
+
+
+def configure_logging(app):
+    """Configure file-based logging with rotation"""
+    from pathlib import Path
+    
+    # Create logs directory
+    logs_dir = Path(app.instance_path) / 'logs'
+    logs_dir.mkdir(exist_ok=True)
+    
+    # Configure rotating file handler (max 10MB per file, keep 10 backups)
+    file_handler = RotatingFileHandler(
+        logs_dir / 'pwd_manager.log',
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=10
+    )
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    ))
+    file_handler.setLevel(logging.ERROR)
+    
+    app.logger.addHandler(file_handler)
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('Password Manager startup')
+
+
+def register_error_handlers(app):
+    """Register custom error handlers"""
+    
+    @app.errorhandler(404)
+    def not_found_error(error):
+        return render_template('errors/404.html'), 404
+    
+    @app.errorhandler(500)
+    def internal_error(error):
+        db.session.rollback()  # Roll back any failed transactions
+        app.logger.error(f'Server Error: {error}', exc_info=True)
+        return render_template('errors/500.html'), 500
+    
+    @app.errorhandler(Exception)
+    def handle_exception(error):
+        # Log the full exception
+        app.logger.error(f'Unhandled Exception: {error}', exc_info=True)
+        db.session.rollback()
+        return render_template('errors/500.html'), 500
