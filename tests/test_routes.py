@@ -43,6 +43,8 @@ class TestRoutes(unittest.TestCase):
         """Test adding a new password entry"""
         self.login()
         response = self.client.post('/add', data={
+            'title': 'Example Site',
+            'has_login_info': '1',
             'website': 'example.com',
             'username': 'user123',
             'password': 'pass123',
@@ -51,9 +53,11 @@ class TestRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         
         # Verify password was added
-        entry = SecretEntry.query.filter_by(website='example.com').first()
+        entry = SecretEntry.query.filter_by(title='Example Site').first()
         self.assertIsNotNone(entry)
         self.assertEqual(entry.username, 'user123')
+        self.assertEqual(entry.website, 'example.com')
+        self.assertTrue(entry.has_login_info)
     
     def test_view_password(self):
         """Test viewing a password entry"""
@@ -64,6 +68,8 @@ class TestRoutes(unittest.TestCase):
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,
+            title='Test Entry',
+            has_login_info=True,
             website='test.com',
             username='testuser',
             encrypted_password=encrypted_password,
@@ -85,6 +91,8 @@ class TestRoutes(unittest.TestCase):
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,
+            title='Delete Test Entry',
+            has_login_info=True,
             website='delete-test.com',
             username='testuser',
             encrypted_password=encrypted_password,
