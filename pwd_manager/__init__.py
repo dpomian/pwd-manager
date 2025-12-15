@@ -50,7 +50,6 @@ def create_app(config_name=None):
         
         # Configure database
         db_type = os.getenv('DATABASE_TYPE', 'sqlite')
-        print(f"Instance path: {app.instance_path}")
         db_path = os.getenv('DATABASE_PATH', os.path.join(app.instance_path, 'passwords.db'))
         
         # Ensure the directory exists

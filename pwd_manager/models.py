@@ -35,9 +35,11 @@ class SecretEntry(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    website = db.Column(db.String(100), nullable=False)
-    username = db.Column(db.String(100), nullable=False)
-    encrypted_password = db.Column(db.String(255), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    has_login_info = db.Column(db.Boolean, default=False, nullable=False)
+    website = db.Column(db.String(100), nullable=True)
+    username = db.Column(db.String(100), nullable=True)
+    encrypted_password = db.Column(db.String(255), nullable=True)
     tags = db.Column(db.String(255), nullable=True)  # Store tags as comma-separated string
     notes = db.Column(db.Text, nullable=True)
     attachments = db.relationship('Attachment', backref='secret', lazy=True, cascade='all, delete-orphan')

@@ -21,7 +21,7 @@
                                 <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                             </svg>
                         </span>
-                        <input type="text" id="searchInput" class="form-control" placeholder="Filter by website name..." autocomplete="off">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Filter by title..." autocomplete="off">
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -42,9 +42,14 @@
                 {% if entries %}
                     {% for entry in entries %}
                         <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center password-entry"
-                             onclick="handleEntryClick(event, '{{ url_for('main.view_secret', entry_id=entry.id) }}')">
+                             onclick="handleEntryClick(event, '{{ url_for('main.view_secret', entry_id=entry.id) }}')"
+                             data-title="{{ entry.title }}">
                             <div class="flex-grow-1">
-                                <h5 class="mb-1 website-name">
+                                <h5 class="mb-1 entry-title">
+                                    {{ entry.title }}
+                                </h5>
+                                {% if entry.has_login_info and entry.website %}
+                                <small class="text-muted">
                                     <a href="{{ 'https://' + entry.website if not entry.website.startswith(('http://', 'https://')) else entry.website }}" 
                                        class="text-decoration-none website-link" 
                                        target="_blank" 
@@ -52,7 +57,8 @@
                                        onclick="event.stopPropagation()">
                                         {{ entry.website }}
                                     </a>
-                                </h5>
+                                </small>
+                                {% endif %}
                                 {% if entry.tags %}
                                     <div class="tags">
                                         {% for tag in entry.tags.split(',') %}
@@ -62,8 +68,10 @@
                                 {% endif %}
                             </div>
                             <div class="flex-shrink-0" onclick="event.stopPropagation()">
+                                {% if entry.has_login_info %}
                                 <button onclick="copyPassword({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">Copy Pwd</button>
                                 <button onclick="showQRCode({{ entry.id }}, this)" class="btn btn-sm btn-secondary me-2">QR Code</button>
+                                {% endif %}
                                 <a href="{{ url_for('main.edit_secret', entry_id=entry.id) }}" class="btn btn-sm btn-primary me-2">Edit</a>
                                 <form action="{{ url_for('main.delete_secret', entry_id=entry.id) }}" method="POST" style="display:inline;">
                                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this secret?')">Delete</button>
@@ -96,11 +104,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let hasVisibleEntries = false;
 
         entries.forEach(entry => {
-            const websiteName = entry.querySelector('.website-name a').textContent.toLowerCase();
+            const title = (entry.dataset.title || '').toLowerCase();
             const tags = Array.from(entry.querySelectorAll('.badge'))
                 .map(tag => tag.textContent.toLowerCase());
             
-            const matchesSearch = websiteName.includes(searchTerm);
+            const matchesSearch = title.includes(searchTerm);
             const matchesTag = !selectedTag || tags.includes(selectedTag);
 
             if (matchesSearch && matchesTag) {
