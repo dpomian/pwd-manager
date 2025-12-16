@@ -175,6 +175,33 @@ html[data-theme="hacker"] {
     color: rgba(74, 246, 38, 0.4);
 }
 
+[data-theme="hacker"] #dropZone {
+    color: rgba(74, 246, 38, 0.4);
+}
+
+[data-theme="hacker"] #dropZone a {
+    color: rgba(74, 246, 38, 0.6);
+}
+
+[data-theme="hacker"] .form-check-label {
+    color: rgba(74, 246, 38, 0.4);
+}
+
+[data-theme="hacker"] .form-check-input {
+    background-color: transparent;
+    border-color: rgba(74, 246, 38, 0.4);
+}
+
+[data-theme="hacker"] .form-check-input:checked {
+    background-color: #4af626;
+    border-color: #4af626;
+}
+
+[data-theme="hacker"] .form-check-input:focus {
+    border-color: #4af626;
+    box-shadow: 0 0 8px rgba(74, 246, 38, 0.3);
+}
+
 [data-theme="hacker"] .card {
     box-shadow: 0 0 15px rgba(74, 246, 38, 0.05);
 }

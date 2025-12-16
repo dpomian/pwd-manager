@@ -10,8 +10,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     FLASK_APP=run.py \
     FLASK_ENV=production
 
-# Install system dependencies
-RUN apk add --no-cache \
+# Install system dependencies (use HTTP to avoid SSL issues with corporate proxies)
+RUN sed -i 's/https/http/' /etc/apk/repositories && \
+    apk add --no-cache \
     gcc \
     musl-dev \
     python3-dev \
