@@ -1,0 +1,540 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} - Password Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="text-center mb-4">{{ page_title }}</h2>
+        <div class="card">
+            <div class="card-body">
+                <form method="POST" action="{{ form_action }}" id="documentForm">
+                    {% if document.is_draft %}
+                        <input type="hidden" name="document_id" value="{{ document.id }}">
+                    {% endif %}
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title" name="title" value="{{ document.title }}" required placeholder="Document title">
+                    </div>
+                    <div class="mb-3">
+                        <label for="content" class="form-label">Markdown Content</label>
+                        <textarea class="form-control" id="content" name="content" rows="10" placeholder="Write your markdown here...">{{ content }}</textarea>
+                    </div>
+                </form>
+
+                <!-- Attachments Section (outside form to avoid form submission issues) -->
+                <div class="mb-3">
+                    <label class="form-label">Attachments</label>
+                    <div class="border rounded p-3">
+                        <div id="dropZone" class="border rounded p-2 text-center mb-2" style="border-style: dashed !important; cursor: pointer; background-color: var(--card-bg); border-color: var(--border-color) !important; transition: all 0.2s ease;">
+                            <input type="file" id="attachmentFile" style="display: none;" accept=".pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.xls,.xlsx,.csv,.json,.xml">
+                            <div id="dropZoneDefault">
+                                <p class="mb-0"><strong>Drop files here</strong>, <a href="#" id="browseLink">browse</a>, or paste an image</p>
+                                <small class="text-muted">Max 10MB</small>
+                            </div>
+                            <div id="dropZoneDragOver" style="display: none;">
+                                <p class="mb-0"><strong>Drop to upload</strong></p>
+                            </div>
+                        </div>
+
+                        <div id="filePreview" class="mb-2" style="display: none;">
+                            <div class="d-flex align-items-center gap-2 p-2 border rounded" style="background-color: var(--card-bg); border-color: var(--border-color) !important;">
+                                <img id="previewThumbnail" style="max-height: 60px; max-width: 100px; display: none;" class="border rounded">
+                                <span id="previewFileIcon" style="font-size: 2rem; display: none;"></span>
+                                <div class="flex-grow-1">
+                                    <input type="text" class="form-control form-control-sm" id="previewFilename" placeholder="Filename">
+                                    <small class="text-muted" id="previewFileSize"></small>
+                                </div>
+                                <button class="btn btn-sm btn-primary" type="button" id="confirmUploadBtn">Upload</button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" id="cancelUploadBtn">Cancel</button>
+                            </div>
+                        </div>
+
+                        <div id="uploadProgress" class="progress mb-3" style="display: none;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+
+                        <div id="attachmentsList">
+                            <p class="text-muted mb-0" id="noAttachments">No attachments yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <a href="{{ cancel_url }}" class="btn btn-secondary me-2">Cancel</a>
+                    <button type="submit" form="documentForm" class="btn btn-primary">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attachment Preview Modal -->
+<div class="modal fade" id="attachmentPreviewModal" tabindex="-1" aria-labelledby="attachmentPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="attachmentPreviewModalLabel">Attachment Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <div id="previewLoading" class="py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading preview...</p>
+                </div>
+                <div id="previewContent" style="display: none;">
+                    <img id="previewImage" class="img-fluid" style="max-height: 60vh; display: none;" alt="Preview">
+                    <iframe id="previewPdf" style="width: 100%; height: 60vh; border: none; display: none;"></iframe>
+                    <pre id="previewText" class="text-start p-3 border rounded" style="max-height: 60vh; overflow: auto; display: none;"></pre>
+                    <div id="previewUnsupported" style="display: none;" class="py-5">
+                        <p class="mt-3">Preview not available for this file type.</p>
+                        <p class="text-muted">Click Download to view the file.</p>
+                    </div>
+                </div>
+                <div id="previewFileInfo" class="mt-3 text-muted small" style="display: none;">
+                    <span id="previewFilename"></span> &bull; <span id="previewFileSize"></span>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div>
+                    <button type="button" class="btn btn-outline-secondary" id="prevAttachmentBtn" title="Previous">
+                        <span>&larr;</span> Previous
+                    </button>
+                    <span id="attachmentCounter" class="mx-3"></span>
+                    <button type="button" class="btn btn-outline-secondary" id="nextAttachmentBtn" title="Next">
+                        Next <span>&rarr;</span>
+                    </button>
+                </div>
+                <div>
+                    <a href="#" class="btn btn-primary" id="previewDownloadBtn">Download</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const docId = Number('{{ document.id }}');
+const uploadUrl = "{{ url_for('library.upload_attachment', doc_id=document.id) }}";
+const uploadClipboardUrl = "{{ url_for('library.upload_clipboard_image', doc_id=document.id) }}";
+const listUrl = "{{ url_for('library.list_attachments', doc_id=document.id) }}";
+let attachmentsList = [];
+let currentAttachmentIndex = 0;
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function getFileIcon(mimeType) {
+    if (mimeType.startsWith('image/')) return 'IMG';
+    if (mimeType.includes('pdf')) return 'PDF';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'DOC';
+    if (mimeType.includes('sheet') || mimeType.includes('excel') || mimeType.includes('csv')) return 'XLS';
+    return 'FILE';
+}
+
+function loadAttachments() {
+    fetch(listUrl)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('attachmentsList');
+            const noAttachments = document.getElementById('noAttachments');
+
+            const existingItems = container.querySelectorAll('.attachment-item');
+            existingItems.forEach(item => item.remove());
+
+            attachmentsList = data.attachments || [];
+
+            if (attachmentsList.length > 0) {
+                noAttachments.style.display = 'none';
+
+                attachmentsList.forEach((att, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'attachment-item d-flex justify-content-between align-items-center p-2 border-bottom';
+                    item.innerHTML = `
+                        <div>
+                            <span class="me-2">${getFileIcon(att.mime_type)}</span>
+                            <span class="attachment-clickable" onclick="openPreview(${index})" style="cursor: pointer;">${att.filename}</span>
+                            <small class="text-muted ms-2">(${formatFileSize(att.size)})</small>
+                        </div>
+                        <div>
+                            <a href="/library/attachment/download/${att.id}" class="btn btn-sm btn-outline-primary me-1">Download</a>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteAttachment('${att.id}')">Delete</button>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+            } else {
+                noAttachments.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading attachments:', error);
+        });
+}
+
+function deleteAttachment(attachmentId) {
+    if (!confirm('Are you sure you want to delete this attachment?')) {
+        return;
+    }
+
+    fetch(`/library/attachment/delete/${attachmentId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadAttachments();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error deleting attachment: ' + error);
+    });
+}
+
+loadAttachments();
+
+const dropZone = document.getElementById('dropZone');
+const dropZoneDefault = document.getElementById('dropZoneDefault');
+const dropZoneDragOver = document.getElementById('dropZoneDragOver');
+const fileInput = document.getElementById('attachmentFile');
+const browseLink = document.getElementById('browseLink');
+const filePreview = document.getElementById('filePreview');
+const previewThumbnail = document.getElementById('previewThumbnail');
+const previewFileIcon = document.getElementById('previewFileIcon');
+const previewFilename = document.getElementById('previewFilename');
+const previewFileSize = document.getElementById('previewFileSize');
+const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+const documentForm = document.getElementById('documentForm');
+
+let pendingFile = null;
+let pendingClipboardData = null;
+let submitAfterUpload = false;
+
+browseLink.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    fileInput.click();
+});
+
+dropZone.addEventListener('click', function(e) {
+    if (e.target !== browseLink) {
+        dropZone.focus();
+    }
+});
+
+dropZone.setAttribute('tabindex', '0');
+
+fileInput.addEventListener('change', function() {
+    if (this.files && this.files[0]) {
+        showFilePreview(this.files[0]);
+    }
+});
+
+dropZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZoneDefault.style.display = 'none';
+    dropZoneDragOver.style.display = 'block';
+    dropZone.style.backgroundColor = '#e3f2fd';
+    dropZone.style.borderColor = '#2196f3';
+});
+
+dropZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDropZoneStyle();
+});
+
+dropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    resetDropZoneStyle();
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        showFilePreview(e.dataTransfer.files[0]);
+    }
+});
+
+function resetDropZoneStyle() {
+    dropZoneDefault.style.display = 'block';
+    dropZoneDragOver.style.display = 'none';
+    dropZone.style.backgroundColor = '';
+    dropZone.style.borderColor = '';
+}
+
+dropZone.addEventListener('paste', handlePaste);
+document.addEventListener('paste', function(e) {
+    const activeElement = document.activeElement;
+    const isInputFocused = activeElement.tagName === 'INPUT' ||
+                           activeElement.tagName === 'TEXTAREA' ||
+                           activeElement.isContentEditable;
+
+    if (!isInputFocused) {
+        handlePaste(e);
+    }
+});
+
+function handlePaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+            const blob = items[i].getAsFile();
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                pendingClipboardData = event.target.result;
+                pendingFile = null;
+
+                const now = new Date();
+                const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const filename = `clipboard_${timestamp}.png`;
+
+                previewThumbnail.src = pendingClipboardData;
+                previewThumbnail.style.display = 'block';
+                previewFileIcon.style.display = 'none';
+                previewFilename.value = filename;
+                previewFileSize.textContent = formatFileSize(blob.size);
+
+                dropZone.style.display = 'none';
+                filePreview.style.display = 'block';
+            };
+
+            reader.readAsDataURL(blob);
+            break;
+        }
+    }
+}
+
+function showFilePreview(file) {
+    pendingFile = file;
+    pendingClipboardData = null;
+
+    previewFilename.value = file.name;
+    previewFileSize.textContent = formatFileSize(file.size);
+
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewThumbnail.src = e.target.result;
+            previewThumbnail.style.display = 'block';
+            previewFileIcon.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    } else {
+        previewThumbnail.style.display = 'none';
+        previewFileIcon.textContent = getFileIcon(file.type);
+        previewFileIcon.style.display = 'block';
+    }
+
+    dropZone.style.display = 'none';
+    filePreview.style.display = 'block';
+}
+
+confirmUploadBtn.addEventListener('click', function() {
+    const progressBar = document.getElementById('uploadProgress');
+    progressBar.style.display = 'block';
+
+    if (pendingClipboardData) {
+        const filename = previewFilename.value.trim() || 'clipboard_image.png';
+
+        fetch(uploadClipboardUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image_data: pendingClipboardData,
+                filename: filename
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            progressBar.style.display = 'none';
+            if (data.success) {
+                resetPreview();
+                loadAttachments();
+                if (submitAfterUpload) {
+                    documentForm.submit();
+                }
+            } else {
+                submitAfterUpload = false;
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            progressBar.style.display = 'none';
+            submitAfterUpload = false;
+            alert('Error uploading: ' + error);
+        });
+    } else if (pendingFile) {
+        const formData = new FormData();
+        const newFilename = previewFilename.value.trim();
+        if (newFilename && newFilename !== pendingFile.name) {
+            const renamedFile = new File([pendingFile], newFilename, { type: pendingFile.type });
+            formData.append('file', renamedFile);
+        } else {
+            formData.append('file', pendingFile);
+        }
+
+        fetch(uploadUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            progressBar.style.display = 'none';
+            if (data.success) {
+                resetPreview();
+                loadAttachments();
+                if (submitAfterUpload) {
+                    documentForm.submit();
+                }
+            } else {
+                submitAfterUpload = false;
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            progressBar.style.display = 'none';
+            submitAfterUpload = false;
+            alert('Error uploading: ' + error);
+        });
+    }
+});
+
+cancelUploadBtn.addEventListener('click', resetPreview);
+
+documentForm.addEventListener('submit', function(e) {
+    if (pendingFile || pendingClipboardData) {
+        e.preventDefault();
+        submitAfterUpload = true;
+        confirmUploadBtn.click();
+    }
+});
+
+function resetPreview() {
+    pendingFile = null;
+    pendingClipboardData = null;
+    fileInput.value = '';
+    previewThumbnail.src = '';
+    previewThumbnail.style.display = 'none';
+    previewFileIcon.style.display = 'none';
+    previewFilename.value = '';
+    previewFileSize.textContent = '';
+    filePreview.style.display = 'none';
+    dropZone.style.display = 'block';
+}
+
+const previewModal = new bootstrap.Modal(document.getElementById('attachmentPreviewModal'));
+
+function openPreview(index) {
+    currentAttachmentIndex = index;
+    showPreview();
+    previewModal.show();
+}
+
+function showPreview() {
+    const att = attachmentsList[currentAttachmentIndex];
+    if (!att) return;
+
+    document.getElementById('attachmentCounter').textContent = `${currentAttachmentIndex + 1} / ${attachmentsList.length}`;
+    document.getElementById('prevAttachmentBtn').disabled = currentAttachmentIndex === 0;
+    document.getElementById('nextAttachmentBtn').disabled = currentAttachmentIndex === attachmentsList.length - 1;
+    document.getElementById('previewDownloadBtn').href = `/library/attachment/download/${att.id}`;
+    document.getElementById('attachmentPreviewModalLabel').textContent = att.filename;
+    document.getElementById('previewFilename').textContent = att.filename;
+    document.getElementById('previewFileSize').textContent = formatFileSize(att.size);
+
+    document.getElementById('previewImage').style.display = 'none';
+    document.getElementById('previewPdf').style.display = 'none';
+    document.getElementById('previewText').style.display = 'none';
+    document.getElementById('previewUnsupported').style.display = 'none';
+
+    const mimeType = att.mime_type;
+
+    if (mimeType === 'application/pdf' || att.filename.toLowerCase().endsWith('.pdf')) {
+        document.getElementById('previewLoading').style.display = 'none';
+        document.getElementById('previewContent').style.display = 'block';
+        document.getElementById('previewFileInfo').style.display = 'block';
+        const iframe = document.getElementById('previewPdf');
+        iframe.src = `/library/attachment/preview/${att.id}`;
+        iframe.style.display = 'block';
+        return;
+    }
+
+    document.getElementById('previewLoading').style.display = 'block';
+    document.getElementById('previewContent').style.display = 'none';
+    document.getElementById('previewFileInfo').style.display = 'none';
+
+    fetch(`/library/attachment/preview/${att.id}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('previewLoading').style.display = 'none';
+            document.getElementById('previewContent').style.display = 'block';
+            document.getElementById('previewFileInfo').style.display = 'block';
+
+            if (data.success) {
+                const contentMimeType = data.mime_type;
+                const content = data.content;
+
+                if (contentMimeType.startsWith('image/')) {
+                    const img = document.getElementById('previewImage');
+                    img.src = `data:${contentMimeType};base64,${content}`;
+                    img.style.display = 'block';
+                } else if (contentMimeType.startsWith('text/') || contentMimeType === 'application/json' || contentMimeType === 'application/xml') {
+                    const pre = document.getElementById('previewText');
+                    try {
+                        pre.textContent = atob(content);
+                    } catch (e) {
+                        pre.textContent = 'Unable to decode text content';
+                    }
+                    pre.style.display = 'block';
+                } else {
+                    document.getElementById('previewUnsupported').style.display = 'block';
+                }
+            } else {
+                document.getElementById('previewUnsupported').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading preview:', error);
+            document.getElementById('previewLoading').style.display = 'none';
+            document.getElementById('previewContent').style.display = 'block';
+            document.getElementById('previewUnsupported').style.display = 'block';
+        });
+}
+
+function navigatePreview(direction) {
+    const newIndex = currentAttachmentIndex + direction;
+    if (newIndex >= 0 && newIndex < attachmentsList.length) {
+        currentAttachmentIndex = newIndex;
+        showPreview();
+    }
+}
+
+document.getElementById('prevAttachmentBtn').addEventListener('click', () => navigatePreview(-1));
+document.getElementById('nextAttachmentBtn').addEventListener('click', () => navigatePreview(1));
+
+document.addEventListener('keydown', function(e) {
+    const modal = document.getElementById('attachmentPreviewModal');
+    if (modal.classList.contains('show')) {
+        if (e.key === 'ArrowLeft') navigatePreview(-1);
+        if (e.key === 'ArrowRight') navigatePreview(1);
+    }
+});
+</script>
+{% endblock %}

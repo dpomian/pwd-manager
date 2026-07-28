@@ -22,6 +22,7 @@ from flask import (
 
 from pwd_manager import db
 from pwd_manager.models import Attachment, SecretEntry, User
+from pwd_manager.utils.auth import get_user_encryption_key
 from pwd_manager.utils.crypto import (
     decrypt_binary,
     decrypt_data,
@@ -30,13 +31,6 @@ from pwd_manager.utils.crypto import (
 )
 
 main_bp = Blueprint("main", __name__)
-
-
-def get_user_encryption_key():
-    user = User.query.get(session.get("user_id"))
-    if user:
-        return user.encryption_key.encode()
-    return None
 
 
 @main_bp.route("/")
@@ -250,7 +244,7 @@ def edit_secret(entry_id):
             return redirect(url_for("main.index"))
         except Exception as e:
             db.session.rollback()
-            flash(f"Error updating secret entry: {str(e)}", "danger")
+            flash(f"Error updating secret entry: {e!s}", "danger")
             return redirect(url_for("main.edit_secret", entry_id=entry_id))
 
     # For GET request, decrypt the password and notes for display
@@ -450,7 +444,7 @@ def upload_attachment(entry_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading file: {str(e)}"}), 500
+        return jsonify({"error": f"Error uploading file: {e!s}"}), 500
 
 
 @main_bp.route("/attachment/upload-clipboard/<int:entry_id>", methods=["POST"])
@@ -570,7 +564,7 @@ def upload_clipboard_image(entry_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading clipboard image: {str(e)}"}), 500
+        return jsonify({"error": f"Error uploading clipboard image: {e!s}"}), 500
 
 
 @main_bp.route("/attachment/download/<attachment_id>")
@@ -611,7 +605,7 @@ def download_attachment(attachment_id):
         )
 
     except Exception as e:
-        return jsonify({"error": f"Error downloading file: {str(e)}"}), 500
+        return jsonify({"error": f"Error downloading file: {e!s}"}), 500
 
 
 @main_bp.route("/attachment/delete/<attachment_id>", methods=["POST"])
@@ -642,7 +636,7 @@ def delete_attachment(attachment_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error deleting attachment: {str(e)}"}), 500
+        return jsonify({"error": f"Error deleting attachment: {e!s}"}), 500
 
 
 @main_bp.route("/attachment/list/<int:entry_id>")
@@ -723,4 +717,4 @@ def preview_attachment(attachment_id):
         )
 
     except Exception as e:
-        return jsonify({"error": f"Error viewing attachment: {str(e)}"}), 500
+        return jsonify({"error": f"Error viewing attachment: {e!s}"}), 500

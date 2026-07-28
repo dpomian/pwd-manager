@@ -1,15 +1,18 @@
-from pwd_manager import db, bcrypt
 import os
 import uuid
-from datetime import datetime
 from base64 import b64encode
+from datetime import datetime
+
+from pwd_manager import bcrypt, db
+
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     encryption_key = db.Column(db.String(255), nullable=False)
-    passwords = db.relationship('SecretEntry', backref='owner', lazy=True)
+    passwords = db.relationship("SecretEntry", backref="owner", lazy=True)
+    documents = db.relationship("Document", backref="owner", lazy=True)
 
     def __init__(self, username, password=None):
         self.username = username
@@ -17,59 +20,130 @@ class User(db.Model):
             self.set_password(password)
         else:
             # For testing purposes, set a dummy password and encryption key
-            self.password = 'dummy_hash'
-            self.encryption_key = b64encode(os.urandom(32)).decode('utf-8')
+            self.password = "dummy_hash"
+            self.encryption_key = b64encode(os.urandom(32)).decode("utf-8")
 
     def set_password(self, password):
         """Hash the password and generate encryption key"""
-        self.password = bcrypt.generate_password_hash(password).decode('utf-8')
+        self.password = bcrypt.generate_password_hash(password).decode("utf-8")
         # Generate a random encryption key
-        self.encryption_key = b64encode(os.urandom(32)).decode('utf-8')
+        self.encryption_key = b64encode(os.urandom(32)).decode("utf-8")
 
     def check_password(self, password):
         """Check if the provided password is correct"""
         return bcrypt.check_password_hash(self.password, password)
 
+
 class SecretEntry(db.Model):
-    __tablename__ = 'password_entry'  # Keep existing table name to preserve data
-    
+    __tablename__ = "password_entry"  # Keep existing table name to preserve data
+
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     has_login_info = db.Column(db.Boolean, default=False, nullable=False)
     website = db.Column(db.String(100), nullable=True)
     username = db.Column(db.String(100), nullable=True)
     encrypted_password = db.Column(db.String(255), nullable=True)
-    tags = db.Column(db.String(255), nullable=True)  # Store tags as comma-separated string
+    tags = db.Column(
+        db.String(255), nullable=True
+    )  # Store tags as comma-separated string
     notes = db.Column(db.Text, nullable=True)
-    attachments = db.relationship('Attachment', backref='secret', lazy=True, cascade='all, delete-orphan')
+    attachments = db.relationship(
+        "Attachment", backref="secret", lazy=True, cascade="all, delete-orphan"
+    )
 
 
 class Attachment(db.Model):
     """Model for encrypted file attachments linked to secrets"""
-    __tablename__ = 'attachment'
-    
+
+    __tablename__ = "attachment"
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    secret_entry_id = db.Column(db.Integer, db.ForeignKey('password_entry.id'), nullable=False)
+    secret_entry_id = db.Column(
+        db.Integer, db.ForeignKey("password_entry.id"), nullable=False
+    )
     original_filename = db.Column(db.String(255), nullable=False)
     mime_type = db.Column(db.String(100), nullable=False)
     file_size = db.Column(db.Integer, nullable=False)  # Size in bytes before encryption
-    storage_filename = db.Column(db.String(255), nullable=False)  # UUID-based filename on disk
+    storage_filename = db.Column(
+        db.String(255), nullable=False
+    )  # UUID-based filename on disk
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Maximum file size: 10MB
     MAX_FILE_SIZE = 10 * 1024 * 1024
-    
+
     # Allowed file extensions
-    ALLOWED_EXTENSIONS = {
-        'pdf', 'doc', 'docx', 'txt', 'rtf',  # Documents
-        'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp',  # Images
-        'xls', 'xlsx', 'csv',  # Spreadsheets
-        'json', 'xml'  # Data files
-    }
-    
+    ALLOWED_EXTENSIONS = frozenset(
+        {
+            "pdf",
+            "doc",
+            "docx",
+            "txt",
+            "rtf",  # Documents
+            "png",
+            "jpg",
+            "jpeg",
+            "gif",
+            "bmp",
+            "webp",  # Images
+            "xls",
+            "xlsx",
+            "csv",  # Spreadsheets
+            "json",
+            "xml",  # Data files
+        }
+    )
+
     @classmethod
     def allowed_file(cls, filename):
         """Check if the file extension is allowed"""
-        return '.' in filename and \
-               filename.rsplit('.', 1)[1].lower() in cls.ALLOWED_EXTENSIONS
+        return (
+            "." in filename
+            and filename.rsplit(".", 1)[1].lower() in cls.ALLOWED_EXTENSIONS
+        )
+
+
+class Document(db.Model):
+    __tablename__ = "document"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    encrypted_content = db.Column(db.Text, nullable=True)
+    is_draft = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    attachments = db.relationship(
+        "DocumentAttachment",
+        backref="document",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+
+class DocumentAttachment(db.Model):
+    """Model for encrypted file attachments linked to library documents"""
+
+    __tablename__ = "document_attachment"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    document_id = db.Column(db.Integer, db.ForeignKey("document.id"), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    mime_type = db.Column(db.String(100), nullable=False)
+    file_size = db.Column(db.Integer, nullable=False)
+    storage_filename = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    MAX_FILE_SIZE = Attachment.MAX_FILE_SIZE
+    ALLOWED_EXTENSIONS = Attachment.ALLOWED_EXTENSIONS
+
+    @classmethod
+    def allowed_file(cls, filename):
+        """Check if the file extension is allowed"""
+        return (
+            "." in filename
+            and filename.rsplit(".", 1)[1].lower() in cls.ALLOWED_EXTENSIONS
+        )
