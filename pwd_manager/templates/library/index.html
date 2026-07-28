@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}My Library - Password Manager{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>My Library</h2>
+            <div>
+                <a href="{{ url_for('library.add_document') }}" class="btn btn-primary me-2">Add New Document</a>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+            </div>
+        </div>
+
+        {% set active_tab = 'library' %}
+        {% include 'partials/tabs.html' %}
+
+        <div class="list-group" id="documentList">
+            {% if documents %}
+                {% for doc in documents %}
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="text-decoration-none fw-bold">
+                                {{ doc.title }}
+                            </a>
+                            <br>
+                            <small class="text-muted">Updated {{ doc.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <div>
+                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-secondary me-1">View</a>
+                            <a href="{{ url_for('library.edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary me-1">Edit</a>
+                            <form action="{{ url_for('library.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <p>Your library is empty.</p>
+                    <a href="{{ url_for('library.add_document') }}" class="btn btn-primary mt-2">Add Your First Document</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
