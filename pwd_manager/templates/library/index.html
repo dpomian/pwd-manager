@@ -19,16 +19,13 @@
         <div class="list-group" id="documentList">
             {% if documents %}
                 {% for doc in documents %}
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                         onclick="window.location.href = '{{ url_for('library.view_document', doc_id=doc.id) }}'">
                         <div class="flex-grow-1">
-                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="text-decoration-none fw-bold">
-                                {{ doc.title }}
-                            </a>
-                            <br>
+                            <h5 class="mb-1 entry-title">{{ doc.title }}</h5>
                             <small class="text-muted">Updated {{ doc.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         </div>
-                        <div>
-                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-secondary me-1">View</a>
+                        <div onclick="event.stopPropagation()">
                             <a href="{{ url_for('library.edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary me-1">Edit</a>
                             <form action="{{ url_for('library.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
                                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
