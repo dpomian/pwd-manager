@@ -13,9 +13,6 @@
             </div>
         </div>
 
-        {% set active_tab = 'library' %}
-        {% include 'partials/tabs.html' %}
-
         <div class="list-group" id="documentList">
             {% if documents %}
                 {% for doc in documents %}

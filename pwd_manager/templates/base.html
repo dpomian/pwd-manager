@@ -14,12 +14,22 @@
     <title>{% block title %}Password Manager{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
 </head>
 <body>
-    <div class="container mt-5 p-4 rounded shadow">
+    <div class="page-header">
+        <nav class="top-nav">
+            <a class="{% if request.endpoint and request.endpoint.startswith('main') %}active{% endif %}" href="{{ url_for('main.index') }}">Secrets</a>
+            <a class="{% if request.endpoint and request.endpoint.startswith('library') %}active{% endif %}" href="{{ url_for('library.index') }}">Library</a>
+        </nav>
+        <div class="theme-bar"></div>
+    </div>
+
+    <div class="container p-4 rounded shadow">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
