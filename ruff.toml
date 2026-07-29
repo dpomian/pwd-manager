@@ -1,0 +1,15 @@
+# Ruff configuration for pwd-manager.
+#
+# The only non-default rule suppressions here are for BLE001 (blind-except)
+# in the Flask route files. Route-level `except Exception` handlers that
+# return a JSON 500 response are the standard Flask error-handling pattern:
+# they prevent unhandled exceptions from producing an HTML 500 page for
+# AJAX callers. Narrowing each catch to specific exception types would risk
+# letting unexpected errors leak through as unhandled 500s, which is worse
+# for a password manager than a controlled JSON error response.
+#
+# All other ruff rules remain at their defaults.
+
+[lint.per-file-ignores]
+"pwd_manager/routes.py" = ["BLE001"]
+"pwd_manager/library/routes.py" = ["BLE001"]

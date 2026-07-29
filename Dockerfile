@@ -27,11 +27,13 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 RUN uv sync --frozen --no-dev
 
-# Create directory for SQLite database and attachments
-RUN mkdir -p /app/instance && chmod 777 /app/instance
-
-# Create a non-root user and switch to it
-RUN adduser -D appuser && chown -R appuser:appuser /app
+# Create a non-root user and set up the instance directory with
+# restricted permissions (750 instead of 777 so only the app user
+# can read/write the database and attachments).
+RUN adduser -D appuser && \
+    mkdir -p instance && \
+    chown -R appuser:appuser /app && \
+    chmod 750 instance
 USER appuser
 
 # Expose port

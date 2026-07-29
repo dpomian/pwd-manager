@@ -1,6 +1,8 @@
 import unittest
+
 from pwd_manager import create_app, db
 from pwd_manager.models import User
+
 
 class TestAuth(unittest.TestCase):
     def setUp(self):

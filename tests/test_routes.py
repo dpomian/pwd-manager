@@ -1,8 +1,10 @@
-import unittest
-from pwd_manager import create_app, db
-from pwd_manager.models import User, SecretEntry
-from pwd_manager.utils.crypto import encrypt_data
 import json
+import unittest
+
+from pwd_manager import create_app, db
+from pwd_manager.models import SecretEntry, User
+from pwd_manager.utils.crypto import encrypt_data
+
 
 class TestRoutes(unittest.TestCase):
     def setUp(self):

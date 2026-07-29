@@ -1,5 +1,7 @@
-from cryptography.fernet import Fernet
 import base64
+
+from cryptography.fernet import Fernet
+
 
 def generate_key():
     """Generate a new Fernet key"""

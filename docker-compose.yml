@@ -8,5 +8,15 @@ services:
     volumes:
       - ${PWD_MANAGER_DB_PATH:-./instance}:/app/instance
     environment:
-      - SECRET_KEY=${SECRET_KEY:-default-secret-key-change-in-production}
+      - FLASK_APP=run.py
+      - FLASK_ENV=production
+      # SECRET_KEY must be set explicitly — there is no safe default.
+      # Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set in .env or the environment}
+      # Phase 1 security flags. Enable per the rollout plan.
+      - ENABLE_CSRF=${ENABLE_CSRF:-0}
+      - ENABLE_SECURITY_HEADERS=${ENABLE_SECURITY_HEADERS:-0}
+      - ENABLE_MARKDOWN_SANITIZE=${ENABLE_MARKDOWN_SANITIZE:-0}
+      - HIDE_INTERNAL_ERRORS=${HIDE_INTERNAL_ERRORS:-0}
+      - STRICT_SECRET_KEY=${STRICT_SECRET_KEY:-0}
     restart: unless-stopped

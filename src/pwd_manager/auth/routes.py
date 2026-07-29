@@ -1,7 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from pwd_manager import db, bcrypt
+from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+
+from pwd_manager import db
 from pwd_manager.models import User
-from pwd_manager.utils.crypto import generate_key
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -22,17 +22,19 @@ def register():
 
         existing_user = User.query.filter_by(username=username).first()
         if existing_user:
-            flash('Username already exists', 'error')
-            return redirect(url_for('auth.register'))
+            # Use the same success message as a successful registration to
+            # avoid revealing which usernames are already taken (L1).
+            flash('Registration successful! Please log in.', 'success')
+            return redirect(url_for('auth.login'))
 
         # Create new user with password
         new_user = User(username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
-        
+
         flash('Registration successful! Please log in.', 'success')
         return redirect(url_for('auth.login'))
-    
+
     return render_template('register.html')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -40,21 +42,26 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        
+
         user = User.query.filter_by(username=username).first()
-        
+
         if user and user.check_password(password):
+            # Regenerate the session to prevent session fixation (H4):
+            # clear the existing session data before assigning the user id
+            # so any pre-login session state (e.g. a cookie planted by an
+            # attacker) is discarded.
+            session.clear()
             session['user_id'] = user.id
             flash('Login successful!', 'success')
             return redirect(url_for('main.index'))
         else:
             flash('Invalid username or password', 'error')
             return render_template('login.html')
-            
+
     return render_template('login.html')
 
 @auth_bp.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    session.clear()
     flash('You have been logged out', 'info')
     return redirect(url_for('auth.login'))

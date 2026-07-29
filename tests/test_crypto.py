@@ -1,7 +1,14 @@
 import unittest
-import base64
-from pwd_manager.utils.crypto import encrypt_data, decrypt_data, generate_key, derive_key
+
 from cryptography.fernet import Fernet
+
+from pwd_manager.utils.crypto import (
+    decrypt_data,
+    derive_key,
+    encrypt_data,
+    generate_key,
+)
+
 
 class TestCrypto(unittest.TestCase):
     def setUp(self):
@@ -38,8 +45,10 @@ class TestCrypto(unittest.TestCase):
         password = 'test password'
         encrypted = encrypt_data(self.test_key, password)
         
-        # Attempting to decrypt with wrong key should raise an exception
-        with self.assertRaises(Exception):
+        # Attempting to decrypt with wrong key should raise InvalidToken
+        from cryptography.fernet import InvalidToken
+
+        with self.assertRaises(InvalidToken):
             decrypt_data(wrong_key, encrypted)
     
     def test_derive_key(self):
