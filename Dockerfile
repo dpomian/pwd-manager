@@ -37,4 +37,4 @@ USER appuser
 EXPOSE 5000
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "pwd_manager:create_app()", "--reload"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--worker-class", "gthread", "--threads", "4", "--timeout", "60", "--keep-alive", "2", "--access-logfile", "-", "--error-logfile", "-", "pwd_manager:create_app()"]
