@@ -259,6 +259,110 @@ class TestLibrary(unittest.TestCase):
         self.assertTrue(delete_response.get_json()["success"])
         self.assertIsNone(DocumentAttachment.query.get(attachment_id))
 
+    def test_add_document_saves_tags(self):
+        """POST /library/add should save tags on the document"""
+        self.login()
+        self.client.get("/library/add")
+        draft = Document.query.order_by(Document.id.desc()).first()
+
+        response = self.client.post(
+            "/library/add",
+            data={
+                "document_id": draft.id,
+                "title": "Tagged Document",
+                "content": "content",
+                "tags": "work,personal",
+            },
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        document = Document.query.get(draft.id)
+        self.assertEqual(document.tags, "work,personal")
+
+    def test_edit_document_saves_tags(self):
+        """POST /library/edit should update document tags"""
+        document = Document(
+            user_id=self.user.id,
+            title="Doc",
+            encrypted_content=None,
+            is_draft=False,
+            tags="old",
+        )
+        db.session.add(document)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/edit/{document.id}",
+            data={"title": "Doc", "content": "content", "tags": "new,updated"},
+            follow_redirects=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        db.session.refresh(document)
+        self.assertEqual(document.tags, "new,updated")
+
+    def test_library_search_by_title(self):
+        """GET /library?search=... should filter by title"""
+        doc = Document(
+            user_id=self.user.id,
+            title="Quarterly Report",
+            encrypted_content=None,
+            is_draft=False,
+            tags="work",
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.get("/library/?search=report")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Quarterly Report", response.data)
+
+    def test_library_filter_by_tag(self):
+        """GET /library?tag=... should filter by tag"""
+        doc1 = Document(
+            user_id=self.user.id,
+            title="Personal Notes",
+            encrypted_content=None,
+            is_draft=False,
+            tags="personal",
+        )
+        doc2 = Document(
+            user_id=self.user.id,
+            title="Work Notes",
+            encrypted_content=None,
+            is_draft=False,
+            tags="work",
+        )
+        db.session.add(doc1)
+        db.session.add(doc2)
+        db.session.commit()
+
+        self.login()
+        response = self.client.get("/library/?tag=work")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Work Notes", response.data)
+        self.assertNotIn(b"Personal Notes", response.data)
+
+    def test_library_other_user_documents_not_searched(self):
+        """Search should not return documents owned by other users"""
+        other_doc = Document(
+            user_id=self.other_user.id,
+            title="Other Secret",
+            encrypted_content=None,
+            is_draft=False,
+            tags="secret",
+        )
+        db.session.add(other_doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.get("/library/?search=secret")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b"Other Secret", response.data)
+
 
 if __name__ == "__main__":
     unittest.main()

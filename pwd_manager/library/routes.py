@@ -45,12 +45,34 @@ def index():
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
-    documents = (
-        Document.query.filter_by(user_id=session["user_id"], is_draft=False)
-        .order_by(Document.updated_at.desc())
-        .all()
+    search_query = request.args.get("search", "").lower()
+    tag_filter = request.args.get("tag", "")
+
+    documents = Document.query.filter_by(user_id=session["user_id"], is_draft=False)
+
+    if search_query:
+        documents = documents.filter(
+            (Document.title.ilike(f"%{search_query}%"))
+            | (Document.tags.ilike(f"%{search_query}%"))
+        )
+
+    if tag_filter:
+        documents = documents.filter(Document.tags.ilike(f"%{tag_filter}%"))
+
+    documents = documents.order_by(Document.updated_at.desc()).all()
+
+    all_tags = set()
+    for doc in documents:
+        if doc.tags:
+            all_tags.update(tag.strip() for tag in doc.tags.split(","))
+
+    return render_template(
+        "library/index.html",
+        documents=documents,
+        all_tags=sorted(all_tags),
+        search_query=search_query,
+        tag_filter=tag_filter,
     )
-    return render_template("library/index.html", documents=documents)
 
 
 @library_bp.route("/add", methods=["GET", "POST"])
@@ -86,6 +108,7 @@ def add_document():
             )
 
         document.title = title
+        document.tags = request.form.get("tags")
         document.encrypted_content = (
             encrypt_data(encryption_key, content) if content else None
         )
@@ -198,6 +221,7 @@ def edit_document(doc_id):
 
         content = request.form.get("content", "")
         document.title = title
+        document.tags = request.form.get("tags")
         document.encrypted_content = (
             encrypt_data(encryption_key, content) if content else None
         )

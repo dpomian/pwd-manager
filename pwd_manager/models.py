@@ -111,6 +111,7 @@ class Document(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     encrypted_content = db.Column(db.Text, nullable=True)
+    tags = db.Column(db.String(255), nullable=True)
     is_draft = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(

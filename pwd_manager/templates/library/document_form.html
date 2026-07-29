@@ -17,6 +17,11 @@
                         <input type="text" class="form-control" id="title" name="title" value="{{ document.title }}" required placeholder="Document title">
                     </div>
                     <div class="mb-3">
+                        <label for="tags" class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="tags" name="tags" value="{{ document.tags or '' }}" placeholder="e.g., work,personal,banking">
+                        <small class="form-text text-muted">Separate tags with commas, no spaces allowed in tags</small>
+                    </div>
+                    <div class="mb-3">
                         <label for="content" class="form-label">Markdown Content</label>
                         <textarea class="form-control" id="content" name="content" rows="10" placeholder="Write your markdown here...">{{ content }}</textarea>
                     </div>

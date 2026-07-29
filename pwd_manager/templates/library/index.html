@@ -13,22 +13,49 @@
             </div>
         </div>
 
-        {% set active_tab = 'library' %}
-        {% include 'partials/tabs.html' %}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                        </svg>
+                    </span>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Filter by title or tags..." autocomplete="off" value="{{ search_query }}">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <select id="tagFilter" class="form-select">
+                    <option value="">Filter by tag...</option>
+                    {% for tag in all_tags %}
+                        <option value="{{ tag }}" {% if tag == tag_filter %}selected{% endif %}>{{ tag }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div id="noResults" class="alert alert-info d-none">
+            No documents match your search criteria.
+        </div>
 
         <div class="list-group" id="documentList">
             {% if documents %}
                 {% for doc in documents %}
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center document-entry"
+                         data-title="{{ doc.title }}"
+                         onclick="window.location.href = '{{ url_for('library.view_document', doc_id=doc.id) }}'">
                         <div class="flex-grow-1">
-                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="text-decoration-none fw-bold">
-                                {{ doc.title }}
-                            </a>
-                            <br>
+                            <h5 class="mb-1 entry-title">{{ doc.title }}</h5>
+                            {% if doc.tags %}
+                                <div class="tags">
+                                    {% for tag in doc.tags.split(',') %}
+                                        <span class="badge bg-secondary me-1">{{ tag }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
                             <small class="text-muted">Updated {{ doc.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         </div>
-                        <div>
-                            <a href="{{ url_for('library.view_document', doc_id=doc.id) }}" class="btn btn-sm btn-secondary me-1">View</a>
+                        <div onclick="event.stopPropagation()">
                             <a href="{{ url_for('library.edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary me-1">Edit</a>
                             <form action="{{ url_for('library.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
                                 <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
@@ -45,4 +72,44 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tagFilter = document.getElementById('tagFilter');
+    const entries = document.querySelectorAll('.document-entry');
+    const noResults = document.getElementById('noResults');
+
+    function filterEntries() {
+        const searchTerm = searchInput.value.toLowerCase().trim();
+        const selectedTag = tagFilter.value.toLowerCase().trim();
+        let hasVisibleEntries = false;
+
+        entries.forEach(entry => {
+            const title = (entry.dataset.title || '').toLowerCase();
+            const tags = Array.from(entry.querySelectorAll('.badge'))
+                .map(tag => tag.textContent.toLowerCase());
+
+            const matchesSearch = !searchTerm || title.includes(searchTerm) || tags.some(tag => tag.includes(searchTerm));
+            const matchesTag = !selectedTag || tags.includes(selectedTag);
+
+            if (matchesSearch && matchesTag) {
+                entry.classList.remove('d-none');
+                hasVisibleEntries = true;
+            } else {
+                entry.classList.add('d-none');
+            }
+        });
+
+        noResults.classList.toggle('d-none', hasVisibleEntries);
+    }
+
+    searchInput.addEventListener('input', filterEntries);
+    tagFilter.addEventListener('change', filterEntries);
+
+    filterEntries();
+});
+</script>
 {% endblock %}
