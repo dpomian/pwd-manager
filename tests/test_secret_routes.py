@@ -32,7 +32,8 @@ class TestSecretRoutes(BaseTestCase):
             "website": "example.com",
             "username": "user1",
             "encrypted_password": encrypt_data(
-                (owner or self.user).encryption_key.encode(), "s3cret-pass"
+                self.key if owner is self.user else self.other_key,
+                "s3cret-pass",
             ),
             "tags": "work,banking",
         }

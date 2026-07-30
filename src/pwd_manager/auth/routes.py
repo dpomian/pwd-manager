@@ -1,14 +1,9 @@
-import base64
-import os
-
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import InvalidToken
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from pwd_manager import db
-from pwd_manager.feature_flags import is_enabled
 from pwd_manager.models import User
 from pwd_manager.utils.auth import encrypt_session_dek
-from pwd_manager.utils.crypto import derive_kek
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -56,40 +51,9 @@ def login():
             flash('Invalid username or password', 'error')
             return render_template('login.html')
 
-        if is_enabled('ENABLE_KEY_WRAPPING'):
-            if user.key_version == 0:
-                # Lazy migration: wrap the existing plaintext DEK with a KEK
-                # derived from the user's master password.
-                dek = base64.b64decode(user.encryption_key)
-                salt = os.urandom(16)
-                salt_b64 = base64.b64encode(salt).decode('utf-8')
-                time_cost = int(os.getenv('ARGON2_TIME_COST', '3'))
-                kek = derive_kek(password, salt_b64, time_cost)
-                wrapped = Fernet(kek).encrypt(dek)
-                user.wrapped_dek = wrapped.decode('utf-8')
-                user.kdf_salt = salt_b64
-                user.kdf_iterations = time_cost
-                user.key_version = 1
-                # Verify the wrap round-trips before committing (C1/C2 safety).
-                try:
-                    if Fernet(kek).decrypt(wrapped) != dek:
-                        db.session.rollback()
-                        flash('Invalid username or password', 'error')
-                        return render_template('login.html')
-                except (ValueError, InvalidToken):
-                    db.session.rollback()
-                    flash('Invalid username or password', 'error')
-                    return render_template('login.html')
-
-            try:
-                dek_b64 = user.get_dek(password)
-            except (ValueError, InvalidToken):
-                flash('Invalid username or password', 'error')
-                return render_template('login.html')
-        else:
-            dek_b64 = user.encryption_key
-
-        if not dek_b64:
+        try:
+            dek_b64 = user.get_dek(password)
+        except (ValueError, InvalidToken):
             flash('Invalid username or password', 'error')
             return render_template('login.html')
 

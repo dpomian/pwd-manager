@@ -58,19 +58,19 @@ class TestFeatureFlags(unittest.TestCase):
 
     def test_truthy_strings_recognised(self):
         for val in ("1", "true", "TRUE", "Yes", "on"):
-            os.environ["ENABLE_KEY_WRAPPING"] = val
-            self.assertTrue(is_enabled("ENABLE_KEY_WRAPPING"), val)
+            os.environ["STRICT_SECRET_KEY"] = val
+            self.assertTrue(is_enabled("STRICT_SECRET_KEY"), val)
 
     def test_falsy_strings_recognised(self):
         for val in ("0", "false", "no", "off", ""):
-            os.environ["ENABLE_KEY_WRAPPING"] = val
-            self.assertFalse(is_enabled("ENABLE_KEY_WRAPPING"), val)
+            os.environ["STRICT_SECRET_KEY"] = val
+            self.assertFalse(is_enabled("STRICT_SECRET_KEY"), val)
 
     def test_unknown_value_warns_and_treats_as_false(self):
-        os.environ["ENABLE_KEY_WRAPPING"] = "maybe"
+        os.environ["STRICT_SECRET_KEY"] = "maybe"
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            self.assertFalse(is_enabled("ENABLE_KEY_WRAPPING"))
+            self.assertFalse(is_enabled("STRICT_SECRET_KEY"))
         self.assertTrue(
             any(issubclass(w.category, RuntimeWarning) for w in caught),
             "Expected a RuntimeWarning for unrecognized flag value",
@@ -108,7 +108,7 @@ class TestFeatureFlags(unittest.TestCase):
         snapshot = known_flags()
         self.assertTrue(snapshot["ENABLE_CSRF"])
         # other flags still default
-        self.assertFalse(snapshot["ENABLE_KEY_WRAPPING"])
+        self.assertFalse(snapshot["STRICT_SECRET_KEY"])
 
     def test_known_flags_covers_all_registered_flags(self):
         self.assertEqual(set(known_flags()), set(_FLAGS))

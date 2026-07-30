@@ -10,9 +10,12 @@ Nothing here uses autouse fixtures, so existing ``unittest.TestCase`` tests
 continue to work unchanged.
 """
 
+import os
 import shutil
 import tempfile
 import unittest
+
+os.environ.setdefault("ARGON2_TIME_COST", "1")
 
 from pwd_manager import create_app, db
 from pwd_manager.models import User
@@ -35,6 +38,10 @@ class BaseTestCase(unittest.TestCase):
     OTHER_PASSWORD = "otherpass"
 
     def setUp(self):
+        # Low Argon2 cost keeps the test suite fast. The value is stored per
+        # user, so production still uses the configured ARGON2_TIME_COST.
+        self._saved_argon2_time = os.environ.get("ARGON2_TIME_COST")
+        os.environ["ARGON2_TIME_COST"] = "1"
         self.app = create_app("testing")
         self.client = self.app.test_client()
         self.app_context = self.app.app_context()
@@ -63,6 +70,10 @@ class BaseTestCase(unittest.TestCase):
         db.drop_all()
         shutil.rmtree(self.attachments_dir, ignore_errors=True)
         self.app_context.pop()
+        if self._saved_argon2_time is None:
+            os.environ.pop("ARGON2_TIME_COST", None)
+        else:
+            os.environ["ARGON2_TIME_COST"] = self._saved_argon2_time
 
     # ---- auth helpers -------------------------------------------------
 

@@ -66,7 +66,7 @@ class TestRoutes(unittest.TestCase):
         self.login()
         
         # Add a password entry
-        encryption_key = self.test_user.encryption_key.encode()
+        encryption_key = self.test_user.get_dek('testpass123').encode()
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,
@@ -89,7 +89,7 @@ class TestRoutes(unittest.TestCase):
         self.login()
         
         # Add a password entry
-        encryption_key = self.test_user.encryption_key.encode()
+        encryption_key = self.test_user.get_dek('testpass123').encode()
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,

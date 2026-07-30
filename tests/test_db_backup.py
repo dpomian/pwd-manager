@@ -46,7 +46,7 @@ class TestDbBackup(unittest.TestCase):
             has_login_info=True,
             website="example.com",
             username="u",
-            encrypted_password=encrypt_data(user.encryption_key.encode(), "p"),
+            encrypted_password=encrypt_data(user.get_dek("backuppass").encode(), "p"),
             tags="t",
         )
         db.session.add(entry)

@@ -20,17 +20,17 @@ Usage in app code::
 
     from pwd_manager.feature_flags import is_enabled
 
-    if is_enabled("ENABLE_KEY_WRAPPING"):
-        ...  # new wrapped-DEK login path
+    if is_enabled("ENABLE_CSRF"):
+        ...  # gated CSRF path
     else:
-        ...  # legacy plaintext-DEK path
+        ...  # legacy path
 
 Usage in tests::
 
     from pwd_manager.feature_flags import override_flag
 
-    with override_flag("ENABLE_KEY_WRAPPING", True):
-        ...  # exercise the new path
+    with override_flag("ENABLE_CSRF", True):
+        ...  # exercise the secure path
 """
 
 from __future__ import annotations
@@ -59,11 +59,7 @@ _FLAGS: dict[str, str] = {
     "ENABLE_SECURITY_HEADERS": "0",
     # Phase 1 — generic error messages instead of raw exception strings (M1).
     "HIDE_INTERNAL_ERRORS": "0",
-    # Phase 2 — key wrapping migration (C1/C2). Default: off.
-    "ENABLE_KEY_WRAPPING": "0",
-    # Phase 3 — drop the legacy plaintext encryption_key column. Default: off
-    # until monitoring shows all users have migrated.
-    "DROP_LEGACY_ENCRYPTION_KEY": "0",
+
 }
 
 

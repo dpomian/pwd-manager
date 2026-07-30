@@ -30,7 +30,7 @@ class TestLibrary(unittest.TestCase):
 
         self.attachments_dir = tempfile.mkdtemp()
         self.app.config["ATTACHMENTS_DIR"] = self.attachments_dir
-        self.key = self.user.encryption_key.encode()
+        self.key = self.user.get_dek("libpass").encode()
 
     def tearDown(self):
         db.session.remove()
