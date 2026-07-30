@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, render_template
@@ -8,38 +9,54 @@ from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
+
+def _project_root() -> Path:
+    path = Path(__file__).resolve().parent
+    for _ in range(6):
+        if (path / "pyproject.toml").exists():
+            return path
+        if path.parent == path:
+            break
+        path = path.parent
+    return Path.cwd()
+
+
+PROJECT_ROOT = _project_root()
+
 # Initialize extensions
 db = SQLAlchemy()
 bcrypt = Bcrypt()
-migrate = Migrate()
+migrate = Migrate(directory=str(PROJECT_ROOT / "migrations"))
 
 
 def create_app(config_name=None):
     # Load environment variables based on config
-    # Priority: .env.local > .env.{config_name} > .env
+    # Priority: PWD_MANAGER_ENV_FILE > .env.local > .env.{config_name} > .env
     env_file = ".env"
     if config_name and config_name != "testing":
         env_file = f".env.{config_name}"
+    env_file = os.getenv("PWD_MANAGER_ENV_FILE", env_file)
 
-    # Check for .env.local first (highest priority for local development)
-    from pathlib import Path
-
-    base_dir = Path(__file__).resolve().parent.parent
+    base_dir = PROJECT_ROOT
     local_env = base_dir / ".env.local"
     config_env = base_dir / env_file
 
-    if local_env.exists():
-        load_dotenv(local_env, override=True)
-        print(f"Loaded environment from: {local_env}")
-    elif config_env.exists():
-        load_dotenv(config_env, override=True)
-        print(f"Loaded environment from: {config_env}")
-    else:
-        load_dotenv()  # Default .env
-        print("Loaded environment from: .env")
+    if config_name != "testing":
+        if local_env.exists():
+            load_dotenv(local_env, override=True)
+            print(f"Loaded environment from: {local_env}")
+        elif config_env.exists():
+            load_dotenv(config_env, override=True)
+            print(f"Loaded environment from: {config_env}")
+        else:
+            load_dotenv(base_dir / ".env")
+            print("Loaded environment from: .env")
+
+    instance_path = base_dir / "instance"
+    instance_path.mkdir(parents=True, exist_ok=True)
 
     # Initialize Flask app
-    app = Flask(__name__)
+    app = Flask(__name__, instance_path=str(instance_path))
 
     if config_name == "testing":
         # Testing configuration
@@ -54,11 +71,11 @@ def create_app(config_name=None):
         # Configure database
         db_type = os.getenv("DATABASE_TYPE", "sqlite")
         db_path = os.getenv(
-            "DATABASE_PATH", os.path.join(app.instance_path, "passwords.db")
+            "DATABASE_PATH", str(Path(app.instance_path) / "passwords.db")
         )
 
         # Ensure the directory exists
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
         # Construct database URL
         if db_type == "sqlite":
@@ -69,9 +86,9 @@ def create_app(config_name=None):
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # Configure attachments directory
-    attachments_dir = os.path.join(app.instance_path, "attachments")
-    os.makedirs(attachments_dir, exist_ok=True)
-    app.config["ATTACHMENTS_DIR"] = attachments_dir
+    attachments_dir = Path(app.instance_path) / "attachments"
+    attachments_dir.mkdir(parents=True, exist_ok=True)
+    app.config["ATTACHMENTS_DIR"] = str(attachments_dir)
     app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB max upload size
 
     # Initialize extensions with app

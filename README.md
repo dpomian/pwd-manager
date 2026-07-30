@@ -14,35 +14,34 @@ A web-based password manager that allows secure storage and management of your p
 ### Option 1: Local Setup
 
 #### Prerequisites
-- Python 3.8+
-- pip
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/)
 
 #### Installation
 1. Clone the repository
-2. Create a virtual environment
-   ```
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
-3. Install dependencies
-   ```
-   pip install -r requirements.txt
-   ```
-4. Set up environment variables
+2. Set up environment variables
    ```
    cp .env.example .env
    # Edit .env with your configuration
    ```
-5. Run the application
+3. Install dependencies
    ```
-   flask run
+   uv sync
+   ```
+4. Run the application
+   ```
+   uv run start
+   ```
+5. Stop the application
+   ```
+   uv run stop
    ```
 
-### Option 2: Docker Setup
+### Option 2: Podman Setup
 
 #### Prerequisites
-- Docker
-- Docker Compose
+- [Podman](https://podman.io/)
+- `podman compose` (or `podman-compose`)
 
 #### Installation
 1. Clone the repository
@@ -53,27 +52,29 @@ A web-based password manager that allows secure storage and management of your p
    # Edit .env with your configuration
    ```
 
-3. Build and run with Docker Compose
+3. Build and run with Podman Compose
    ```bash
-   docker-compose up --build
+   podman compose up --build
    ```
 
    Or run in detached mode:
    ```bash
-   docker-compose up -d
+   podman compose up -d
    ```
 
 4. Access the application at `http://localhost:5000` (or your configured port)
 
-#### Environment Variables for Docker
+#### Environment Variables for Podman
 - `PWD_MANAGER_PORT`: Port to expose the application (default: 5000)
 - `PWD_MANAGER_DB_PATH`: Path to store the SQLite database (default: ./instance)
 - `SECRET_KEY`: Secret key for session management
 
-To stop the Docker container:
+To stop the Podman container:
 ```bash
-docker-compose down
+podman compose down
 ```
+
+> Docker equivalents (`docker compose` / `docker-compose`) work as well.
 
 ## Security Notes
 - All passwords are encrypted at rest

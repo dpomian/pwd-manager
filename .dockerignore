@@ -27,7 +27,6 @@ coverage.xml
 venv/
 ENV/
 *env/
-.python-version
 pyvenv.cfg
 
 # IDE
@@ -40,5 +39,6 @@ pyvenv.cfg
 instance/*.db
 tests/
 *.md
+!README.md
 Dockerfile
 docker-compose.yml

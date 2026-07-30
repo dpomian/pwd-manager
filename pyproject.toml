@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pwd-manager"
+version = "1.0.0"
+description = "A web-based secure password manager."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "flask>=3.1.3",
+    "werkzeug>=3.1.6",
+    "Flask-SQLAlchemy==3.0.2",
+    "Flask-Migrate==4.0.5",
+    "Flask-Bcrypt==1.0.1",
+    "python-dotenv>=1.2.2",
+    "cryptography>=48.0.1",
+    "gunicorn==23.0.0",
+    "qrcode==8.2",
+    "pillow>=12.3.0",
+    "markdown>=3.8.1",
+    "click>=8.1.0",
+]
+
+[project.scripts]
+start = "pwd_manager.cli:start"
+stop = "pwd_manager.cli:stop"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pwd_manager"]
+
+[tool.uv]
+dev-dependencies = ["pytest>=9.0.1"]
