@@ -11,5 +11,5 @@
 # All other ruff rules remain at their defaults.
 
 [lint.per-file-ignores]
-"pwd_manager/routes.py" = ["BLE001"]
-"pwd_manager/library/routes.py" = ["BLE001"]
+"src/pwd_manager/routes.py" = ["BLE001"]
+"src/pwd_manager/library/routes.py" = ["BLE001"]

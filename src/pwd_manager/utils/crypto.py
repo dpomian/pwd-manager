@@ -1,5 +1,6 @@
 import base64
 
+import argon2
 from cryptography.fernet import Fernet
 
 
@@ -7,12 +8,24 @@ def generate_key():
     """Generate a new Fernet key"""
     return Fernet.generate_key()
 
-def derive_key(password):
-    """Derive a Fernet key from a password"""
-    # Pad the password to 32 bytes
-    key = password.ljust(32)[:32].encode()
-    # Convert to base64 as required by Fernet
-    return base64.urlsafe_b64encode(key)
+def derive_kek(password: str, salt_b64: str, time_cost: int) -> bytes:
+    """Derive a Fernet-compatible key-encryption key (KEK) from a password.
+
+    Uses Argon2id with the given per-user salt and time cost.  The output is
+    a 32-byte raw key encoded with URL-safe base64 so it can be used directly
+    with ``cryptography.fernet.Fernet``.
+    """
+    salt = base64.b64decode(salt_b64)
+    raw = argon2.low_level.hash_secret_raw(
+        password.encode(),
+        salt,
+        time_cost=time_cost,
+        memory_cost=65536,
+        parallelism=4,
+        hash_len=32,
+        type=argon2.Type.ID,
+    )
+    return base64.urlsafe_b64encode(raw)
 
 def encrypt_data(key, data):
     """Encrypt a password using a Fernet key

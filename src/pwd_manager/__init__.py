@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -166,6 +168,9 @@ def create_app(config_name=None):
         # Testing configuration
         app.config["TESTING"] = True
         app.config["SECRET_KEY"] = "test-secret-key"
+        app.config["SESSION_DEK_KEY"] = base64.urlsafe_b64encode(
+            hashlib.sha256(app.config["SECRET_KEY"].encode()).digest()
+        )
         app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
         app.config["WTF_CSRF_ENABLED"] = False  # Disable CSRF for testing
     else:
@@ -173,6 +178,9 @@ def create_app(config_name=None):
         secret_key = os.getenv("SECRET_KEY")
         _validate_secret_key(secret_key)
         app.config["SECRET_KEY"] = secret_key
+        app.config["SESSION_DEK_KEY"] = base64.urlsafe_b64encode(
+            hashlib.sha256(app.config["SECRET_KEY"].encode()).digest()
+        )
 
         # Configure database
         db_type = os.getenv("DATABASE_TYPE", "sqlite")

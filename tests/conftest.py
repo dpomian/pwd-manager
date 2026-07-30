@@ -55,8 +55,8 @@ class BaseTestCase(unittest.TestCase):
         # between tests or into the repo.
         self.attachments_dir = tempfile.mkdtemp(prefix="pwdmgr_test_att_")
         self.app.config["ATTACHMENTS_DIR"] = self.attachments_dir
-        self.key = self.user.encryption_key.encode()
-        self.other_key = self.other_user.encryption_key.encode()
+        self.key = self.user.get_dek(self.PASSWORD).encode()
+        self.other_key = self.other_user.get_dek(self.OTHER_PASSWORD).encode()
 
     def tearDown(self):
         db.session.remove()
