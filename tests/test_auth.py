@@ -1,6 +1,11 @@
 import unittest
+
+from conftest import BaseTestCase
+from cryptography.fernet import InvalidToken
+
 from pwd_manager import create_app, db
 from pwd_manager.models import User
+
 
 class TestAuth(unittest.TestCase):
     def setUp(self):
@@ -61,6 +66,43 @@ class TestAuth(unittest.TestCase):
             'password': 'wrongpass'
         }, follow_redirects=True)
         self.assertEqual(response.status_code, 200)
+
+class TestWrappedDek(BaseTestCase):
+    """Phase 3: all accounts store a wrapped DEK and the plaintext column is gone."""
+
+    def test_user_has_wrapped_dek(self):
+        """New users always store a wrapped DEK, never a plaintext one."""
+        self.assertEqual(self.user.key_version, 1)
+        self.assertIsNotNone(self.user.wrapped_dek)
+        self.assertIsNotNone(self.user.kdf_salt)
+        self.assertIsNotNone(self.user.kdf_iterations)
+
+    def test_get_dek_round_trip(self):
+        """get_dek reproduces the same DEK used to wrap the key."""
+        self.assertEqual(
+            self.user.get_dek(self.PASSWORD).encode(),
+            self.key,
+        )
+
+    def test_wrong_password_cannot_decrypt_wrapped_key(self):
+        """An incorrect password cannot recover the wrapped DEK."""
+        with self.assertRaises(InvalidToken):
+            self.user.get_dek("wrong-password")
+
+    def test_login_sets_session_dek(self):
+        """After login the encrypted DEK token is placed in the session."""
+        self.login()
+        with self.client.session_transaction() as sess:
+            self.assertIn("dek", sess)
+            self.assertIsNotNone(sess["dek"])
+
+    def test_logout_clears_session_dek(self):
+        """Logging out removes the DEK from the session."""
+        self.login()
+        self.logout()
+        with self.client.session_transaction() as sess:
+            self.assertIsNone(sess.get("dek"))
+
 
 if __name__ == '__main__':
     unittest.main()

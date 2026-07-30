@@ -5,9 +5,8 @@ Revises: 363da605ac29
 Create Date: 2024-12-10
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'add_attachment_table'

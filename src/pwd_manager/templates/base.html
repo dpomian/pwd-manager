@@ -11,6 +11,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{% block title %}Password Manager{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -44,6 +45,42 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // C3: automatically attach the X-CSRFToken header to all same-origin
+        // fetch() calls that use an unsafe method (POST/PUT/PATCH/DELETE).
+        // The token is read from the <meta name="csrf-token"> tag in <head>,
+        // which is populated by Flask-WTF's csrf_token() function. GET/HEAD/
+        // OPTIONS requests are left untouched.
+        (function() {
+            const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+            const originalFetch = window.fetch;
+            window.fetch = function(input, init) {
+                init = init || {};
+                const method = (init.method || 'GET').toUpperCase();
+                if (!UNSAFE_METHODS.has(method)) return originalFetch(input, init);
+
+                const token = document.querySelector('meta[name="csrf-token"]');
+                if (!token || !token.content) return originalFetch(input, init);
+
+                // Determine the target URL to check same-origin.
+                let url;
+                if (input instanceof Request) {
+                    url = new URL(input.url, window.location.origin);
+                } else {
+                    url = new URL(input, window.location.origin);
+                }
+                if (url.origin !== window.location.origin) return originalFetch(input, init);
+
+                // Don't override an explicitly-set header.
+                const headers = new Headers(init.headers || {});
+                if (!headers.has('X-CSRFToken')) {
+                    headers.set('X-CSRFToken', token.content);
+                }
+                init.headers = headers;
+                return originalFetch(input, init);
+            };
+        })();
+    </script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     {% block scripts %}{% endblock %}

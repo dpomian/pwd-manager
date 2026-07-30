@@ -1,7 +1,7 @@
 import base64
 import mimetypes
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
 
@@ -17,9 +17,11 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.utils import secure_filename
 
 from pwd_manager import db
 from pwd_manager.models import Document, DocumentAttachment
+from pwd_manager.utils import escape_like, safe_error_message
 from pwd_manager.utils.auth import get_user_encryption_key
 from pwd_manager.utils.crypto import (
     decrypt_binary,
@@ -51,13 +53,17 @@ def index():
     documents = Document.query.filter_by(user_id=session["user_id"], is_draft=False)
 
     if search_query:
+        safe_query = escape_like(search_query)
         documents = documents.filter(
-            (Document.title.ilike(f"%{search_query}%"))
-            | (Document.tags.ilike(f"%{search_query}%"))
+            (Document.title.ilike(f"%{safe_query}%", escape="\\"))
+            | (Document.tags.ilike(f"%{safe_query}%", escape="\\"))
         )
 
     if tag_filter:
-        documents = documents.filter(Document.tags.ilike(f"%{tag_filter}%"))
+        safe_tag = escape_like(tag_filter)
+        documents = documents.filter(
+            Document.tags.ilike(f"%{safe_tag}%", escape="\\")
+        )
 
     documents = documents.order_by(Document.updated_at.desc()).all()
 
@@ -113,7 +119,7 @@ def add_document():
             encrypt_data(encryption_key, content) if content else None
         )
         document.is_draft = False
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(UTC)
         db.session.commit()
 
         flash("Document saved successfully!", "success")
@@ -190,10 +196,8 @@ def view_document(doc_id):
             document=document,
             content=content,
         )
-    except Exception as exc:
-        current_app.logger.error(
-            f"Error decrypting document {doc_id}: {exc}", exc_info=True
-        )
+    except Exception:
+        current_app.logger.exception(f"Error decrypting document {doc_id}")
         flash("Error decrypting document content", "error")
         return redirect(url_for("library.index"))
 
@@ -225,7 +229,7 @@ def edit_document(doc_id):
         document.encrypted_content = (
             encrypt_data(encryption_key, content) if content else None
         )
-        document.updated_at = datetime.utcnow()
+        document.updated_at = datetime.now(UTC)
         db.session.commit()
 
         flash("Document updated successfully!", "success")
@@ -237,10 +241,8 @@ def edit_document(doc_id):
             if document.encrypted_content
             else ""
         )
-    except Exception as exc:
-        current_app.logger.error(
-            f"Error decrypting document {doc_id}: {exc}", exc_info=True
-        )
+    except Exception:
+        current_app.logger.exception(f"Error decrypting document {doc_id}")
         content = ""
 
     return render_template(
@@ -353,7 +355,7 @@ def upload_attachment(doc_id):
         )
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading file: {exc}"}), 500
+        return jsonify({"error": safe_error_message(f"Error uploading file: {exc}")}), 500
 
 
 @library_bp.route("/attachment/upload-clipboard/<int:doc_id>", methods=["POST"])
@@ -462,7 +464,7 @@ def upload_clipboard_image(doc_id):
         )
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading clipboard image: {exc}"}), 500
+        return jsonify({"error": safe_error_message(f"Error uploading clipboard image: {exc}")}), 500
 
 
 @library_bp.route("/attachment/download/<attachment_id>")
@@ -495,10 +497,10 @@ def download_attachment(attachment_id):
             BytesIO(decrypted_content),
             mimetype=attachment.mime_type,
             as_attachment=True,
-            download_name=attachment.original_filename,
+            download_name=secure_filename(attachment.original_filename),
         )
     except Exception as exc:
-        return jsonify({"error": f"Error downloading file: {exc}"}), 500
+        return jsonify({"error": safe_error_message(f"Error downloading file: {exc}")}), 500
 
 
 @library_bp.route("/attachment/delete/<attachment_id>", methods=["POST"])
@@ -520,7 +522,7 @@ def delete_attachment(attachment_id):
         return jsonify({"success": True})
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"error": f"Error deleting attachment: {exc}"}), 500
+        return jsonify({"error": safe_error_message(f"Error deleting attachment: {exc}")}), 500
 
 
 @library_bp.route("/attachment/list/<int:doc_id>")
@@ -578,7 +580,7 @@ def preview_attachment(attachment_id):
                 BytesIO(decrypted_content),
                 mimetype=attachment.mime_type,
                 as_attachment=False,
-                download_name=attachment.original_filename,
+                download_name=secure_filename(attachment.original_filename),
             )
 
         content_base64 = base64.b64encode(decrypted_content).decode("utf-8")
@@ -591,4 +593,4 @@ def preview_attachment(attachment_id):
             }
         )
     except Exception as exc:
-        return jsonify({"error": f"Error viewing attachment: {exc}"}), 500
+        return jsonify({"error": safe_error_message(f"Error viewing attachment: {exc}")}), 500

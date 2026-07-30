@@ -1,7 +1,5 @@
 import base64
 import mimetypes
-import random
-import string
 import uuid
 from io import BytesIO
 from pathlib import Path
@@ -19,9 +17,11 @@ from flask import (
     session,
     url_for,
 )
+from werkzeug.utils import secure_filename
 
 from pwd_manager import db
 from pwd_manager.models import Attachment, SecretEntry, User
+from pwd_manager.utils import escape_like, safe_error_message
 from pwd_manager.utils.auth import get_user_encryption_key
 from pwd_manager.utils.crypto import (
     decrypt_binary,
@@ -29,6 +29,7 @@ from pwd_manager.utils.crypto import (
     encrypt_binary,
     encrypt_data,
 )
+from pwd_manager.utils.password_generator import generate_password
 
 main_bp = Blueprint("main", __name__)
 
@@ -48,15 +49,19 @@ def index():
     passwords = SecretEntry.query.filter_by(user_id=user.id)
 
     if search_query:
+        safe_query = escape_like(search_query)
         passwords = passwords.filter(
-            (SecretEntry.title.ilike(f"%{search_query}%"))
-            | (SecretEntry.website.ilike(f"%{search_query}%"))
-            | (SecretEntry.username.ilike(f"%{search_query}%"))
-            | (SecretEntry.tags.ilike(f"%{search_query}%"))
+            (SecretEntry.title.ilike(f"%{safe_query}%", escape="\\"))
+            | (SecretEntry.website.ilike(f"%{safe_query}%", escape="\\"))
+            | (SecretEntry.username.ilike(f"%{safe_query}%", escape="\\"))
+            | (SecretEntry.tags.ilike(f"%{safe_query}%", escape="\\"))
         )
 
     if tag_filter:
-        passwords = passwords.filter(SecretEntry.tags.ilike(f"%{tag_filter}%"))
+        safe_tag = escape_like(tag_filter)
+        passwords = passwords.filter(
+            SecretEntry.tags.ilike(f"%{safe_tag}%", escape="\\")
+        )
 
     # Get all unique tags for the filter dropdown
     all_tags = set()
@@ -174,9 +179,9 @@ def view_secret(entry_id):
             notes=decrypted_notes,
             qr_code=qr_base64,
         )
-    except Exception as e:
-        current_app.logger.error(
-            f"Error decrypting password for entry {entry_id}: {e}", exc_info=True
+    except Exception:
+        current_app.logger.exception(
+            f"Error decrypting password for entry {entry_id}"
         )
         flash("Error decrypting data", "error")
         return redirect(url_for("main.index"))
@@ -184,19 +189,7 @@ def view_secret(entry_id):
 
 @main_bp.route("/generate_password")
 def generate_password_route():
-    def generate_group():
-        # Define character set: lowercase, uppercase, and numbers
-        chars = string.ascii_letters + string.digits
-        # Random length between 4 and 6
-        length = random.randint(4, 6)
-        return "".join(random.choice(chars) for _ in range(length))
-
-    # Generate between 3 to 5 groups
-    num_groups = random.randint(3, 5)
-    # Generate groups and join them with hyphens
-    password = "-".join(generate_group() for _ in range(num_groups))
-
-    return jsonify({"password": password})
+    return jsonify({"password": generate_password()})
 
 
 @main_bp.route("/edit/<int:entry_id>", methods=["GET", "POST"])
@@ -244,7 +237,7 @@ def edit_secret(entry_id):
             return redirect(url_for("main.index"))
         except Exception as e:
             db.session.rollback()
-            flash(f"Error updating secret entry: {e!s}", "danger")
+            flash(safe_error_message(f"Error updating secret entry: {e!s}"), "danger")
             return redirect(url_for("main.edit_secret", entry_id=entry_id))
 
     # For GET request, decrypt the password and notes for display
@@ -444,7 +437,7 @@ def upload_attachment(entry_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading file: {e!s}"}), 500
+        return jsonify({"error": safe_error_message(f"Error uploading file: {e!s}")}), 500
 
 
 @main_bp.route("/attachment/upload-clipboard/<int:entry_id>", methods=["POST"])
@@ -564,7 +557,7 @@ def upload_clipboard_image(entry_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error uploading clipboard image: {e!s}"}), 500
+        return jsonify({"error": safe_error_message(f"Error uploading clipboard image: {e!s}")}), 500
 
 
 @main_bp.route("/attachment/download/<attachment_id>")
@@ -601,11 +594,11 @@ def download_attachment(attachment_id):
             BytesIO(decrypted_content),
             mimetype=attachment.mime_type,
             as_attachment=True,
-            download_name=attachment.original_filename,
+            download_name=secure_filename(attachment.original_filename),
         )
 
     except Exception as e:
-        return jsonify({"error": f"Error downloading file: {e!s}"}), 500
+        return jsonify({"error": safe_error_message(f"Error downloading file: {e!s}")}), 500
 
 
 @main_bp.route("/attachment/delete/<attachment_id>", methods=["POST"])
@@ -636,7 +629,7 @@ def delete_attachment(attachment_id):
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": f"Error deleting attachment: {e!s}"}), 500
+        return jsonify({"error": safe_error_message(f"Error deleting attachment: {e!s}")}), 500
 
 
 @main_bp.route("/attachment/list/<int:entry_id>")
@@ -701,7 +694,7 @@ def preview_attachment(attachment_id):
                 BytesIO(decrypted_content),
                 mimetype=mime_type,
                 as_attachment=False,
-                download_name=attachment.original_filename,
+                download_name=secure_filename(attachment.original_filename),
             )
 
         # For images and text, return as base64 JSON (more efficient for inline display)
@@ -717,4 +710,4 @@ def preview_attachment(attachment_id):
         )
 
     except Exception as e:
-        return jsonify({"error": f"Error viewing attachment: {e!s}"}), 500
+        return jsonify({"error": safe_error_message(f"Error viewing attachment: {e!s}")}), 500
