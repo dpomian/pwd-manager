@@ -14,9 +14,10 @@ review.
 """
 
 
+from conftest import BaseTestCase
+
 from pwd_manager.models import SecretEntry
 from pwd_manager.utils.crypto import encrypt_data
-from tests.conftest import BaseTestCase
 
 
 class TestSecretRoutes(BaseTestCase):

@@ -18,10 +18,11 @@ import base64
 import io
 from pathlib import Path
 
+from conftest import BaseTestCase
+
 from pwd_manager import db
 from pwd_manager.models import Attachment, SecretEntry
 from pwd_manager.utils.crypto import decrypt_binary
-from tests.conftest import BaseTestCase
 
 
 class TestSecretAttachments(BaseTestCase):

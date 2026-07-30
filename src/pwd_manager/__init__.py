@@ -15,6 +15,11 @@ db = SQLAlchemy()
 bcrypt = Bcrypt()
 migrate = Migrate()
 
+# Project root: the directory the app is launched from (repo root or Docker
+# WORKDIR). Override with PROJECT_ROOT env var if the package is installed
+# outside the source tree.
+PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", os.getcwd()))
+
 # Known-insecure default SECRET_KEY values that must never be used in
 # production. If the env var is set to one of these, the app will either
 # warn loudly (default) or refuse to start (STRICT_SECRET_KEY=1).
