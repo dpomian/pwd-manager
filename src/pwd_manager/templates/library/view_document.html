@@ -5,7 +5,16 @@
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <h2 class="text-center mb-4">{{ document.title }}</h2>
+        <nav aria-label="breadcrumb" class="mb-2">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('library.index') }}">Library</a></li>
+                {% if document.collection %}
+                    <li class="breadcrumb-item"><a href="{{ url_for('library.index', collection_id=document.collection.id) }}">{{ document.collection.name }}</a></li>
+                {% endif %}
+                <li class="breadcrumb-item active" aria-current="page">{{ document.title }}</li>
+            </ol>
+        </nav>
+        <h2 class="mb-4">{{ document.title }}</h2>
         <div class="card">
             <div class="card-body">
                 {% if content %}
@@ -87,6 +96,7 @@
 <script>
 const docId = Number('{{ document.id }}');
 const listUrl = "{{ url_for('library.list_attachments', doc_id=document.id) }}";
+const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
 let attachmentsList = [];
 let currentAttachmentIndex = 0;
 
@@ -132,9 +142,11 @@ function loadAttachments() {
                         </div>
                         <div>
                             <a href="/library/attachment/download/${att.id}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">Download</a>
+                            <button class="btn btn-sm btn-outline-danger ms-1 delete-attachment" data-id="${att.id}" onclick="event.stopPropagation();">Delete</button>
                         </div>
                     `;
                     item.querySelector('.attachment-clickable').addEventListener('click', () => openPreview(index));
+                    item.querySelector('.delete-attachment').addEventListener('click', () => deleteAttachment(att.id));
                     container.appendChild(item);
                 });
             } else {
@@ -144,6 +156,29 @@ function loadAttachments() {
         .catch(error => {
             console.error('Error loading attachments:', error);
         });
+}
+
+function deleteAttachment(attachmentId) {
+    if (!confirm('Delete this attachment?')) return;
+    fetch(`/library/attachment/delete/${attachmentId}`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadAttachments();
+        } else {
+            alert(data.error || 'Failed to delete attachment');
+        }
+    })
+    .catch(error => {
+        console.error('Error deleting attachment:', error);
+        alert('Failed to delete attachment');
+    });
 }
 
 const previewModal = new bootstrap.Modal(document.getElementById('attachmentPreviewModal'));

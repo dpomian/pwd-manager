@@ -3,13 +3,67 @@
 {% block title %}My Library - Password Manager{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-md-12">
+<div class="row g-4 library-layout">
+    <div class="col-lg-3 col-md-4 collections-sidebar">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Collections</h5>
+            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addCollectionForm" aria-expanded="false" aria-controls="addCollectionForm">+</button>
+        </div>
+
+        <div class="collapse mb-3" id="addCollectionForm">
+            <form method="POST" action="{{ url_for('library.add_collection') }}" class="d-flex gap-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="name" class="form-control form-control-sm" placeholder="New collection" required>
+                <button type="submit" class="btn btn-sm btn-success">Add</button>
+            </form>
+        </div>
+
+        <div class="list-group collection-list" id="collectionList">
+            {% for coll in collections %}
+                {% set is_active = coll.id == active_collection.id %}
+                {% set doc_count = coll.documents | rejectattr('is_draft') | list | length %}
+                <div class="list-group-item collection-item{% if is_active %} active{% endif %}" data-collection-id="{{ coll.id }}">
+                    <a href="{{ url_for('library.index', collection_id=coll.id) }}" class="collection-name{% if is_active %} text-white{% endif %}">
+                        <span class="name-text">{{ coll.name }}</span>
+                        <span class="badge rounded-pill{% if is_active %} bg-light text-dark{% else %} bg-secondary{% endif %}">{{ doc_count }}</span>
+                    </a>
+                    {% if coll.name != 'General' %}
+                        <div class="collection-actions">
+                            <button type="button" class="btn btn-sm btn-link p-0 rename-toggle" title="Rename">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5v-.293z"/>
+                                </svg>
+                            </button>
+                            <form method="POST" action="{{ url_for('library.delete_collection', coll_id=coll.id) }}" class="d-inline" onsubmit="return confirm('Delete this collection and all its documents?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM6.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H6.118zM2.5 3V2h11v1h-11z"/>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
+                        <form method="POST" action="{{ url_for('library.rename_collection', coll_id=coll.id) }}" class="rename-form d-none d-flex gap-2 mt-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="text" name="name" class="form-control form-control-sm" value="{{ coll.name }}" required>
+                            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                            <button type="button" class="btn btn-sm btn-secondary rename-cancel">Cancel</button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="col-lg-9 col-md-8 documents-area">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>My Library</h2>
             <div>
-                <a href="{{ url_for('library.add_document') }}" class="btn btn-primary me-2">Add New Document</a>
-                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">Logout</a>
+                <h2 class="mb-0">{{ active_collection.name }}</h2>
+                <small class="text-muted">{{ active_collection.documents | rejectattr('is_draft') | list | length }} documents</small>
+            </div>
+            <div>
+                <a href="{{ url_for('library.add_document', collection_id=active_collection.id) }}" class="btn btn-primary">+ New Document</a>
             </div>
         </div>
 
@@ -65,8 +119,8 @@
                 {% endfor %}
             {% else %}
                 <div class="alert alert-info text-center">
-                    <p>Your library is empty.</p>
-                    <a href="{{ url_for('library.add_document') }}" class="btn btn-primary mt-2">Add Your First Document</a>
+                    <p>This collection is empty.</p>
+                    <a href="{{ url_for('library.add_document', collection_id=active_collection.id) }}" class="btn btn-primary mt-2">Add Your First Document</a>
                 </div>
             {% endif %}
         </div>
@@ -108,8 +162,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     searchInput.addEventListener('input', filterEntries);
     tagFilter.addEventListener('change', filterEntries);
-
     filterEntries();
+
+    document.querySelectorAll('.rename-toggle').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const item = this.closest('.collection-item');
+            item.querySelector('.collection-name').classList.add('d-none');
+            item.querySelector('.collection-actions').classList.add('d-none');
+            item.querySelector('.rename-form').classList.remove('d-none');
+        });
+    });
+
+    document.querySelectorAll('.rename-cancel').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const item = this.closest('.collection-item');
+            item.querySelector('.collection-name').classList.remove('d-none');
+            item.querySelector('.collection-actions').classList.remove('d-none');
+            item.querySelector('.rename-form').classList.add('d-none');
+        });
+    });
 });
 </script>
 {% endblock %}

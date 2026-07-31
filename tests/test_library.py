@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from pwd_manager import create_app, db
-from pwd_manager.models import Document, DocumentAttachment, User
+from pwd_manager.models import Collection, Document, DocumentAttachment, User
 from pwd_manager.utils.crypto import decrypt_data
 
 
@@ -26,6 +26,12 @@ class TestLibrary(unittest.TestCase):
         self.other_user.set_password("otherpass")
         db.session.add(self.other_user)
 
+        db.session.commit()
+
+        self.general_collection = Collection(
+            user_id=self.user.id, name="General"
+        )
+        db.session.add(self.general_collection)
         db.session.commit()
 
         self.attachments_dir = tempfile.mkdtemp()
@@ -362,6 +368,99 @@ class TestLibrary(unittest.TestCase):
         response = self.client.get("/library/?search=secret")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b"Other Secret", response.data)
+
+
+    def test_general_collection_appears_on_index(self):
+        """The General collection is created and shown by default."""
+        self.login()
+        response = self.client.get("/library/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"General", response.data)
+
+    def test_create_collection(self):
+        """A logged-in user can create a new collection."""
+        self.login()
+        response = self.client.post(
+            "/library/collection/add",
+            data={"name": "Work"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(
+            Collection.query.filter_by(
+                user_id=self.user.id, name="Work"
+            ).first()
+        )
+
+    def test_rename_collection(self):
+        """A non-General collection can be renamed."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/collection/{work.id}/rename",
+            data={"name": "Projects"},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Collection.query.get(work.id).name, "Projects")
+
+    def test_delete_collection(self):
+        """Deleting a collection removes its documents."""
+        temp = Collection(user_id=self.user.id, name="Temp")
+        db.session.add(temp)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            collection_id=temp.id,
+            title="In temp",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/collection/{temp.id}/delete",
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(Collection.query.get(temp.id))
+        self.assertIsNone(Document.query.get(doc.id))
+
+    def test_documents_filtered_by_collection(self):
+        """The library index only shows documents from the active collection."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        general_doc = Document(
+            user_id=self.user.id,
+            collection_id=self.general_collection.id,
+            title="General doc",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        work_doc = Document(
+            user_id=self.user.id,
+            collection_id=work.id,
+            title="Work doc",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        db.session.add(general_doc)
+        db.session.add(work_doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.get(f"/library/?collection_id={work.id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Work doc", response.data)
+        self.assertNotIn(b"General doc", response.data)
 
 
 if __name__ == "__main__":
