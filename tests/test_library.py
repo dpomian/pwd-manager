@@ -32,6 +32,11 @@ class TestLibrary(unittest.TestCase):
             user_id=self.user.id, name="General"
         )
         db.session.add(self.general_collection)
+
+        self.other_general_collection = Collection(
+            user_id=self.other_user.id, name="General"
+        )
+        db.session.add(self.other_general_collection)
         db.session.commit()
 
         self.attachments_dir = tempfile.mkdtemp()
@@ -148,6 +153,7 @@ class TestLibrary(unittest.TestCase):
             encrypted_content=None,
             is_draft=False,
         )
+        document.collections = [self.general_collection]
         db.session.add(document)
         db.session.commit()
 
@@ -164,6 +170,7 @@ class TestLibrary(unittest.TestCase):
             encrypted_content=None,
             is_draft=False,
         )
+        document.collections = [self.general_collection]
         db.session.add(document)
         db.session.commit()
 
@@ -190,6 +197,7 @@ class TestLibrary(unittest.TestCase):
             encrypted_content=None,
             is_draft=False,
         )
+        document.collections = [self.general_collection]
         db.session.add(document)
         db.session.commit()
 
@@ -227,6 +235,7 @@ class TestLibrary(unittest.TestCase):
             encrypted_content=None,
             is_draft=False,
         )
+        document.collections = [self.general_collection]
         db.session.add(document)
         db.session.commit()
 
@@ -295,6 +304,7 @@ class TestLibrary(unittest.TestCase):
             is_draft=False,
             tags="old",
         )
+        document.collections = [self.general_collection]
         db.session.add(document)
         db.session.commit()
 
@@ -318,6 +328,7 @@ class TestLibrary(unittest.TestCase):
             is_draft=False,
             tags="work",
         )
+        doc.collections = [self.general_collection]
         db.session.add(doc)
         db.session.commit()
 
@@ -342,6 +353,8 @@ class TestLibrary(unittest.TestCase):
             is_draft=False,
             tags="work",
         )
+        doc1.collections = [self.general_collection]
+        doc2.collections = [self.general_collection]
         db.session.add(doc1)
         db.session.add(doc2)
         db.session.commit()
@@ -361,6 +374,7 @@ class TestLibrary(unittest.TestCase):
             is_draft=False,
             tags="secret",
         )
+        other_doc.collections = [self.other_general_collection]
         db.session.add(other_doc)
         db.session.commit()
 
@@ -415,11 +429,11 @@ class TestLibrary(unittest.TestCase):
 
         doc = Document(
             user_id=self.user.id,
-            collection_id=temp.id,
             title="In temp",
             encrypted_content=None,
             is_draft=False,
         )
+        doc.collections = [temp]
         db.session.add(doc)
         db.session.commit()
 
@@ -432,6 +446,32 @@ class TestLibrary(unittest.TestCase):
         self.assertIsNone(Collection.query.get(temp.id))
         self.assertIsNone(Document.query.get(doc.id))
 
+    def test_delete_collection_keeps_shared_documents(self):
+        """Documents in other collections survive collection deletion."""
+        temp = Collection(user_id=self.user.id, name="Temp")
+        db.session.add(temp)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            title="Shared",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [temp, self.general_collection]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/collection/{temp.id}/delete",
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(Collection.query.get(temp.id))
+        self.assertIsNotNone(Document.query.get(doc.id))
+        self.assertIn(self.general_collection, Document.query.get(doc.id).collections)
+
     def test_documents_filtered_by_collection(self):
         """The library index only shows documents from the active collection."""
         work = Collection(user_id=self.user.id, name="Work")
@@ -440,18 +480,18 @@ class TestLibrary(unittest.TestCase):
 
         general_doc = Document(
             user_id=self.user.id,
-            collection_id=self.general_collection.id,
             title="General doc",
             encrypted_content=None,
             is_draft=False,
         )
         work_doc = Document(
             user_id=self.user.id,
-            collection_id=work.id,
             title="Work doc",
             encrypted_content=None,
             is_draft=False,
         )
+        general_doc.collections = [self.general_collection]
+        work_doc.collections = [work]
         db.session.add(general_doc)
         db.session.add(work_doc)
         db.session.commit()
@@ -461,6 +501,153 @@ class TestLibrary(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Work doc", response.data)
         self.assertNotIn(b"General doc", response.data)
+
+    def test_share_document(self):
+        """Sharing adds a document to a second collection."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            title="Share me",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [self.general_collection]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/{doc.id}/share",
+            data={"collection_id": work.id},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        refreshed = Document.query.get(doc.id)
+        self.assertIn(work, refreshed.collections)
+        self.assertIn(self.general_collection, refreshed.collections)
+
+    def test_move_document(self):
+        """Moving reassigns a document to a single collection."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            title="Move me",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [self.general_collection]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/{doc.id}/move",
+            data={"collection_id": work.id},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        refreshed = Document.query.get(doc.id)
+        self.assertIn(work, refreshed.collections)
+        self.assertNotIn(self.general_collection, refreshed.collections)
+
+    def test_remove_document_collection_keeps_shared_doc(self):
+        """Removing from one collection keeps the document if others remain."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            title="Shared",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [self.general_collection, work]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/{doc.id}/remove",
+            data={"collection_id": work.id},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNotNone(Document.query.get(doc.id))
+        refreshed = Document.query.get(doc.id)
+        self.assertNotIn(work, refreshed.collections)
+        self.assertIn(self.general_collection, refreshed.collections)
+
+    def test_remove_document_collection_deletes_orphan_doc(self):
+        """Removing a document from its only collection deletes it."""
+        doc = Document(
+            user_id=self.user.id,
+            title="Orphan",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [self.general_collection]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+        response = self.client.post(
+            f"/library/{doc.id}/remove",
+            data={"collection_id": self.general_collection.id},
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(Document.query.get(doc.id))
+
+    def test_share_then_remove_from_active_keeps_document(self):
+        """Share a document, then remove it from the active collection; it should remain in the other one."""
+        work = Collection(user_id=self.user.id, name="Work")
+        db.session.add(work)
+        db.session.commit()
+
+        doc = Document(
+            user_id=self.user.id,
+            title="Traveler",
+            encrypted_content=None,
+            is_draft=False,
+        )
+        doc.collections = [self.general_collection]
+        db.session.add(doc)
+        db.session.commit()
+
+        self.login()
+
+        # Share to the Work collection
+        share_response = self.client.post(
+            f"/library/{doc.id}/share",
+            data={"collection_id": work.id},
+            follow_redirects=True,
+        )
+        self.assertEqual(share_response.status_code, 200)
+        shared = Document.query.get(doc.id)
+        self.assertIn(work, shared.collections)
+        self.assertIn(self.general_collection, shared.collections)
+
+        # Remove from the active (General) collection, as the library list does
+        remove_response = self.client.post(
+            f"/library/{doc.id}/remove",
+            data={
+                "collection_id": self.general_collection.id,
+                "next": "index",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(remove_response.status_code, 200)
+        refreshed = Document.query.get(doc.id)
+        self.assertIsNotNone(refreshed)
+        self.assertNotIn(self.general_collection, refreshed.collections)
+        self.assertIn(work, refreshed.collections)
 
 
 if __name__ == "__main__":

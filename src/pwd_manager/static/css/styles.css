@@ -485,7 +485,7 @@ html[data-theme="dark"] {
 }
 
 .btn-close {
-    filter: var(--text-color) === '#ffffff' ? invert(1) : none;
+    filter: none;
 }
 
 /* Ensure text-muted uses theme colors */
@@ -992,7 +992,7 @@ html[data-theme="dark"] {
 
 .collections-sidebar {
     border-right: 1px solid var(--border-color);
-    padding-right: 1rem;
+    padding-right: 0.5rem;
 }
 
 .collection-list .collection-item {
@@ -1000,10 +1000,10 @@ html[data-theme="dark"] {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    padding: 0.75rem 1rem;
+    padding: 0.35rem 0.5rem;
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 0.2rem;
     background-color: var(--list-group-bg);
     transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1023,10 +1023,11 @@ html[data-theme="dark"] {
     flex-grow: 1;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
     text-decoration: none;
     color: inherit;
     font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .collection-list .collection-name:hover {
@@ -1035,7 +1036,7 @@ html[data-theme="dark"] {
 
 .collection-list .collection-actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.25rem;
     align-items: center;
 }
 
@@ -1054,7 +1055,51 @@ html[data-theme="dark"] {
 }
 
 .documents-area {
-    padding-left: 1rem;
+    padding-left: 0.5rem;
+}
+
+.document-entry {
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    margin-bottom: 0.2rem;
+    background-color: var(--list-group-bg);
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.document-entry:hover {
+    background-color: var(--list-group-hover);
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
+}
+
+.document-entry .entry-title {
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.2;
+    margin-bottom: 0.05rem;
+}
+
+.document-entry .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    margin-bottom: 0.1rem;
+    font-size: 0.8em;
+}
+
+.document-entry .tags .badge {
+    padding: 0.15em 0.4em;
+    font-size: 0.85em;
+}
+
+.document-entry .text-muted {
+    font-size: 0.75em;
+}
+
+.document-entry .btn {
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
 }
 
 @media (max-width: 767.98px) {
@@ -1062,9 +1107,10 @@ html[data-theme="dark"] {
         border-right: none;
         border-bottom: 1px solid var(--border-color);
         padding-right: 0;
-        padding-bottom: 1rem;
+        padding-bottom: 0.5rem;
     }
     .documents-area {
         padding-left: 0;
+        padding-top: 0.5rem;
     }
 }

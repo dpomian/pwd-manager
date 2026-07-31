@@ -30,7 +30,7 @@
         <div class="theme-bar"></div>
     </div>
 
-    <div class="container p-4 rounded shadow">
+    <div class="{% block container_class %}container p-4 rounded shadow{% endblock %}">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}

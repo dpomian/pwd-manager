@@ -66,6 +66,13 @@ class User(db.Model):
         return bcrypt.check_password_hash(self.password, password)
 
 
+document_collections = db.Table(
+    "document_collection",
+    db.Column("document_id", db.Integer, db.ForeignKey("document.id"), primary_key=True),
+    db.Column("collection_id", db.Integer, db.ForeignKey("collection.id"), primary_key=True),
+)
+
+
 class Collection(db.Model):
     __tablename__ = "collection"
 
@@ -77,7 +84,10 @@ class Collection(db.Model):
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
     documents = db.relationship(
-        "Document", backref="collection", lazy=True, cascade="all, delete-orphan"
+        "Document",
+        secondary=document_collections,
+        back_populates="collections",
+        lazy="dynamic",
     )
 
 
@@ -156,7 +166,6 @@ class Document(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=True)
     title = db.Column(db.String(200), nullable=False)
     encrypted_content = db.Column(db.Text, nullable=True)
     tags = db.Column(db.String(255), nullable=True)
@@ -164,6 +173,12 @@ class Document(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    collections = db.relationship(
+        "Collection",
+        secondary=document_collections,
+        back_populates="documents",
+        lazy=True,
     )
     attachments = db.relationship(
         "DocumentAttachment",
