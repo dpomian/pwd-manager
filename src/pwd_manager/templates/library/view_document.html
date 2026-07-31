@@ -2,20 +2,58 @@
 
 {% block title %}{{ document.title }} - Password Manager{% endblock %}
 
-{% block container_class %}container-fluid px-2 py-3{% endblock %}
+{% block container_class %}container-fluid px-2 py-1{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-12">
-        <nav aria-label="breadcrumb" class="mb-2">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('library.index') }}">Library</a></li>
-                {% if document.collection %}
-                    <li class="breadcrumb-item"><a href="{{ url_for('library.index', collection_id=document.collection.id) }}">{{ document.collection.name }}</a></li>
-                {% endif %}
-                <li class="breadcrumb-item active" aria-current="page">{{ document.title }}</li>
-            </ol>
-        </nav>
+        <div class="card mb-3">
+            <div class="card-body p-3">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex flex-wrap align-items-center gap-1">
+                        {% for coll in document.collections %}
+                            <a href="{{ url_for('library.index', collection_id=coll.id) }}" class="badge bg-secondary text-decoration-none">{{ coll.name }}</a>
+                        {% else %}
+                            <span class="text-muted small">Not in any collection</span>
+                        {% endfor %}
+                    </div>
+                    <form method="POST" class="d-flex flex-wrap gap-2 align-items-center">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="next" value="view">
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Share</button>
+                            <ul class="dropdown-menu">
+                                {% for coll in collections %}
+                                    <li><button type="submit" class="dropdown-item" formaction="{{ url_for('library.share_document', doc_id=document.id) }}" name="collection_id" value="{{ coll.id }}">{{ coll.name }}</button></li>
+                                {% else %}
+                                    <li><span class="dropdown-item disabled">No collections</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Move to</button>
+                            <ul class="dropdown-menu">
+                                {% for coll in collections %}
+                                    <li><button type="submit" class="dropdown-item" formaction="{{ url_for('library.move_document', doc_id=document.id) }}" name="collection_id" value="{{ coll.id }}">{{ coll.name }}</button></li>
+                                {% else %}
+                                    <li><span class="dropdown-item disabled">No collections</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-danger dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Remove from</button>
+                            <ul class="dropdown-menu">
+                                {% for coll in document.collections %}
+                                    <li><button type="submit" class="dropdown-item" formaction="{{ url_for('library.remove_document_collection', doc_id=document.id) }}" name="collection_id" value="{{ coll.id }}" onclick="return confirm('Remove from {{ coll.name }}? If this is the only collection, the document will be deleted.')">{{ coll.name }}</button></li>
+                                {% else %}
+                                    <li><span class="dropdown-item disabled">No collections</span></li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
         <h3 class="mb-3">{{ document.title }}</h3>
         <div class="card">
             <div class="card-body p-3">

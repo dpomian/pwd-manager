@@ -85,8 +85,8 @@ def index():
     tag_filter = request.args.get("tag", "")
 
     documents = Document.query.filter_by(
-        user_id=user_id, is_draft=False, collection_id=active_collection.id
-    )
+        user_id=user_id, is_draft=False
+    ).filter(Document.collections.any(id=active_collection.id))
 
     if search_query:
         safe_query = escape_like(search_query)
@@ -109,9 +109,7 @@ def index():
             all_tags.update(tag.strip() for tag in doc.tags.split(","))
 
     collection_counts = {
-        coll.id: Document.query.filter_by(
-            user_id=user_id, is_draft=False, collection_id=coll.id
-        ).count()
+        coll.id: coll.documents.filter_by(user_id=user_id, is_draft=False).count()
         for coll in collections
     }
 
@@ -191,11 +189,11 @@ def add_document():
 
     draft = Document(
         user_id=user_id,
-        collection_id=collection.id,
         title="",
         encrypted_content=None,
         is_draft=True,
     )
+    draft.collections = [collection]
     db.session.add(draft)
     db.session.commit()
 
@@ -251,6 +249,7 @@ def view_document(doc_id):
             "library/view_document.html",
             document=document,
             content=content,
+            collections=Collection.query.filter_by(user_id=session["user_id"]).all(),
         )
     except Exception:
         current_app.logger.exception(f"Error decrypting document {doc_id}")
@@ -321,6 +320,9 @@ def delete_document(doc_id):
         flash("Unauthorized access", "error")
         return redirect(url_for("library.index"))
 
+    redirect_collection_id = (
+        document.collections[0].id if document.collections else None
+    )
     _delete_document_attachments(document)
     db.session.delete(document)
     db.session.commit()
@@ -329,9 +331,109 @@ def delete_document(doc_id):
     return redirect(
         url_for(
             "library.index",
-            collection_id=document.collection_id if document.collection_id else None,
+            collection_id=redirect_collection_id,
         )
     )
+
+
+@library_bp.route("/<int:doc_id>/share", methods=["POST"])
+def share_document(doc_id):
+    """Add a document to another collection."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    document = Document.query.get_or_404(doc_id)
+    if document.user_id != user_id or document.is_draft:
+        flash("Unauthorized or invalid document", "error")
+        return redirect(url_for("library.index"))
+
+    collection_id = request.form.get("collection_id", type=int)
+    collection = Collection.query.filter_by(
+        id=collection_id, user_id=user_id
+    ).first()
+    if not collection:
+        flash("Collection not found", "error")
+        return redirect(url_for("library.view_document", doc_id=doc_id))
+
+    if collection not in document.collections:
+        document.collections.append(collection)
+        document.updated_at = datetime.now(UTC)
+        db.session.commit()
+        flash(f"Document shared to {collection.name}", "success")
+    else:
+        flash("Document is already in that collection", "info")
+
+    return redirect(url_for("library.view_document", doc_id=doc_id))
+
+
+@library_bp.route("/<int:doc_id>/move", methods=["POST"])
+def move_document(doc_id):
+    """Move a document to a single collection."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    document = Document.query.get_or_404(doc_id)
+    if document.user_id != user_id or document.is_draft:
+        flash("Unauthorized or invalid document", "error")
+        return redirect(url_for("library.index"))
+
+    collection_id = request.form.get("collection_id", type=int)
+    collection = Collection.query.filter_by(
+        id=collection_id, user_id=user_id
+    ).first()
+    if not collection:
+        flash("Collection not found", "error")
+        return redirect(url_for("library.view_document", doc_id=doc_id))
+
+    document.collections = [collection]
+    document.updated_at = datetime.now(UTC)
+    db.session.commit()
+    flash(f"Document moved to {collection.name}", "success")
+    return redirect(url_for("library.index", collection_id=collection.id))
+
+
+@library_bp.route("/<int:doc_id>/remove", methods=["POST"])
+def remove_document_collection(doc_id):
+    """Remove a document from one collection; delete it if it has no others."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    document = Document.query.get_or_404(doc_id)
+    if document.user_id != user_id or document.is_draft:
+        flash("Unauthorized or invalid document", "error")
+        return redirect(url_for("library.index"))
+
+    collection_id = request.form.get("collection_id", type=int)
+    collection = Collection.query.filter_by(
+        id=collection_id, user_id=user_id
+    ).first()
+    if not collection:
+        flash("Collection not found", "error")
+        return redirect(url_for("library.view_document", doc_id=doc_id))
+
+    if collection not in document.collections:
+        flash("Document is not in that collection", "error")
+        return redirect(url_for("library.view_document", doc_id=doc_id))
+
+    next_view = request.form.get("next", "view")
+
+    document.collections.remove(collection)
+    if not document.collections:
+        _delete_document_attachments(document)
+        db.session.delete(document)
+        db.session.commit()
+        flash("Document removed from last collection and deleted", "success")
+        return redirect(url_for("library.index"))
+
+    document.updated_at = datetime.now(UTC)
+    db.session.commit()
+    flash(f"Document removed from {collection.name}", "success")
+    if next_view == "view":
+        return redirect(url_for("library.view_document", doc_id=doc_id))
+    return redirect(url_for("library.index", collection_id=collection.id))
 
 
 @library_bp.route("/collection/add", methods=["POST"])
@@ -397,7 +499,7 @@ def rename_collection(coll_id):
 
 @library_bp.route("/collection/<int:coll_id>/delete", methods=["POST"])
 def delete_collection(coll_id):
-    """Delete a collection and all of its documents and attachments."""
+    """Delete a collection and any documents that no longer belong to others."""
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
@@ -411,7 +513,11 @@ def delete_collection(coll_id):
         return redirect(url_for("library.index", collection_id=collection.id))
 
     for doc in list(collection.documents):
-        _delete_document_attachments(doc)
+        doc.collections.remove(collection)
+        if not doc.collections:
+            _delete_document_attachments(doc)
+            db.session.delete(doc)
+
     db.session.delete(collection)
     db.session.commit()
     flash("Collection deleted", "success")
