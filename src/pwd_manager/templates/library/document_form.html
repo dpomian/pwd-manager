@@ -9,6 +9,7 @@
         <div class="card">
             <div class="card-body">
                 <form method="POST" action="{{ form_action }}" id="documentForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {% if document.is_draft %}
                         <input type="hidden" name="document_id" value="{{ document.id }}">
                     {% endif %}

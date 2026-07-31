@@ -1,5 +1,7 @@
 import unittest
+
 from pwd_manager.utils.password_generator import generate_password
+
 
 class TestPasswordGenerator(unittest.TestCase):
     def test_password_format(self):

@@ -1,8 +1,10 @@
-import unittest
-from pwd_manager import create_app, db
-from pwd_manager.models import User, SecretEntry
-from pwd_manager.utils.crypto import encrypt_data
 import json
+import unittest
+
+from pwd_manager import create_app, db
+from pwd_manager.models import SecretEntry, User
+from pwd_manager.utils.crypto import encrypt_data
+
 
 class TestRoutes(unittest.TestCase):
     def setUp(self):
@@ -64,7 +66,7 @@ class TestRoutes(unittest.TestCase):
         self.login()
         
         # Add a password entry
-        encryption_key = self.test_user.encryption_key.encode()
+        encryption_key = self.test_user.get_dek('testpass123').encode()
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,
@@ -87,7 +89,7 @@ class TestRoutes(unittest.TestCase):
         self.login()
         
         # Add a password entry
-        encryption_key = self.test_user.encryption_key.encode()
+        encryption_key = self.test_user.get_dek('testpass123').encode()
         encrypted_password = encrypt_data(encryption_key, 'testpass123')
         entry = SecretEntry(
             user_id=self.test_user.id,

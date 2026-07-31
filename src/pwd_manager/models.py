@@ -10,7 +10,11 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
-    encryption_key = db.Column(db.String(255), nullable=False)
+    kdf_salt = db.Column(db.String(64), nullable=False)
+    kdf_iterations = db.Column(db.Integer, nullable=False)
+    wrapped_dek = db.Column(db.String(255), nullable=False)
+    # Version marker so future parameter changes can be handled on next login.
+    key_version = db.Column(db.Integer, default=1, nullable=False)
     passwords = db.relationship("SecretEntry", backref="owner", lazy=True)
     documents = db.relationship("Document", backref="owner", lazy=True)
 
@@ -19,15 +23,43 @@ class User(db.Model):
         if password:
             self.set_password(password)
         else:
-            # For testing purposes, set a dummy password and encryption key
+            # For testing purposes, set a dummy password. The wrapping data
+            # will be created by set_password() when the test is ready.
             self.password = "dummy_hash"
-            self.encryption_key = b64encode(os.urandom(32)).decode("utf-8")
+            self.wrapped_dek = None
+            self.kdf_salt = None
+            self.kdf_iterations = None
+            self.key_version = 0
 
     def set_password(self, password):
-        """Hash the password and generate encryption key"""
+        """Hash the password and wrap the data-encryption key."""
+        from cryptography.fernet import Fernet
+
+        from pwd_manager.utils.crypto import derive_kek
+
         self.password = bcrypt.generate_password_hash(password).decode("utf-8")
-        # Generate a random encryption key
-        self.encryption_key = b64encode(os.urandom(32)).decode("utf-8")
+        dek = os.urandom(32)
+        salt = os.urandom(16)
+        salt_b64 = b64encode(salt).decode("utf-8")
+        time_cost = int(os.getenv("ARGON2_TIME_COST", "3"))
+        kek = derive_kek(password, salt_b64, time_cost)
+        wrapped = Fernet(kek).encrypt(dek)
+        self.wrapped_dek = wrapped.decode("utf-8")
+        self.kdf_salt = salt_b64
+        self.kdf_iterations = time_cost
+        self.key_version = 1
+
+    def get_dek(self, password: str) -> str:
+        """Return the base64-encoded data-encryption key for the given password."""
+        from cryptography.fernet import Fernet
+
+        from pwd_manager.utils.crypto import derive_kek
+
+        if not (self.wrapped_dek and self.kdf_salt and self.kdf_iterations):
+            raise ValueError("Key wrapping data is incomplete")
+        kek = derive_kek(password, self.kdf_salt, self.kdf_iterations)
+        dek = Fernet(kek).decrypt(self.wrapped_dek.encode("utf-8"))
+        return b64encode(dek).decode("utf-8")
 
     def check_password(self, password):
         """Check if the provided password is correct"""

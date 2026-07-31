@@ -5,9 +5,8 @@ Revises: add_attachment_table
 Create Date: 2025-12-15
 
 """
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'add_title_login_info'
