@@ -66,6 +66,21 @@ class User(db.Model):
         return bcrypt.check_password_hash(self.password, password)
 
 
+class Collection(db.Model):
+    __tablename__ = "collection"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    documents = db.relationship(
+        "Document", backref="collection", lazy=True, cascade="all, delete-orphan"
+    )
+
+
 class SecretEntry(db.Model):
     __tablename__ = "password_entry"  # Keep existing table name to preserve data
 
@@ -141,6 +156,7 @@ class Document(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=True)
     title = db.Column(db.String(200), nullable=False)
     encrypted_content = db.Column(db.Text, nullable=True)
     tags = db.Column(db.String(255), nullable=True)

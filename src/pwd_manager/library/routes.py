@@ -20,7 +20,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from pwd_manager import db
-from pwd_manager.models import Document, DocumentAttachment
+from pwd_manager.models import Collection, Document, DocumentAttachment
 from pwd_manager.utils import escape_like, safe_error_message
 from pwd_manager.utils.auth import get_user_encryption_key
 from pwd_manager.utils.crypto import (
@@ -42,15 +42,59 @@ def _delete_attachment_file(attachment):
         storage_path.unlink()
 
 
+def _delete_document_attachments(document):
+    """Remove all on-disk attachment files for a document."""
+    for attachment in list(document.attachments):
+        _delete_attachment_file(attachment)
+
+
+def _ensure_general_collection(user_id):
+    """Return the user's General collection, creating it if missing."""
+    collection = Collection.query.filter_by(user_id=user_id, name="General").first()
+    if not collection:
+        collection = Collection(user_id=user_id, name="General")
+        db.session.add(collection)
+        db.session.commit()
+    return collection
+
+
+def _sort_collections(collections):
+    """Place General first, then sort the rest alphabetically by name."""
+    general = [c for c in collections if c.name == "General"]
+    others = sorted([c for c in collections if c.name != "General"], key=lambda c: c.name.lower())
+    return general + others
+
+
 @library_bp.route("/")
 def index():
     if "user_id" not in session:
         return redirect(url_for("auth.login"))
 
+    user_id = session["user_id"]
+    general = _ensure_general_collection(user_id)
+
+    collections = Collection.query.filter_by(user_id=user_id).all()
+    collections = _sort_collections(collections)
+
+    active_id = request.args.get("collection_id", type=int) or general.id
+    active_collection = Collection.query.filter_by(id=active_id, user_id=user_id).first()
+    if not active_collection:
+        active_collection = general
+
     search_query = request.args.get("search", "").lower()
     tag_filter = request.args.get("tag", "")
 
-    documents = Document.query.filter_by(user_id=session["user_id"], is_draft=False)
+    documents = Document.query.filter_by(user_id=user_id, is_draft=False)
+
+    if active_collection.name == "General":
+        documents = documents.filter(
+            db.or_(
+                Document.collection_id == active_collection.id,
+                Document.collection_id.is_(None),
+            )
+        )
+    else:
+        documents = documents.filter_by(collection_id=active_collection.id)
 
     if search_query:
         safe_query = escape_like(search_query)
@@ -74,6 +118,8 @@ def index():
 
     return render_template(
         "library/index.html",
+        collections=collections,
+        active_collection=active_collection,
         documents=documents,
         all_tags=sorted(all_tags),
         search_query=search_query,
@@ -91,6 +137,17 @@ def add_document():
     if not encryption_key:
         flash("Error retrieving encryption key", "error")
         return redirect(url_for("library.index"))
+
+    collection_id = request.args.get("collection_id", type=int)
+    if collection_id:
+        collection = Collection.query.filter_by(
+            id=collection_id, user_id=user_id
+        ).first()
+        if not collection:
+            flash("Collection not found", "error")
+            return redirect(url_for("library.index"))
+    else:
+        collection = _ensure_general_collection(user_id)
 
     if request.method == "POST":
         document_id = request.form.get("document_id")
@@ -128,13 +185,13 @@ def add_document():
     # Clean up any leftover drafts for this user before creating a new one
     old_drafts = Document.query.filter_by(user_id=user_id, is_draft=True).all()
     for draft in old_drafts:
-        for attachment in list(draft.attachments):
-            _delete_attachment_file(attachment)
+        _delete_document_attachments(draft)
         db.session.delete(draft)
     db.session.commit()
 
     draft = Document(
         user_id=user_id,
+        collection_id=collection.id,
         title="",
         encrypted_content=None,
         is_draft=True,
@@ -162,8 +219,7 @@ def cancel_document(doc_id):
         flash("Unauthorized or invalid document", "error")
         return redirect(url_for("library.index"))
 
-    for attachment in list(document.attachments):
-        _delete_attachment_file(attachment)
+    _delete_document_attachments(document)
     db.session.delete(document)
     db.session.commit()
 
@@ -265,12 +321,100 @@ def delete_document(doc_id):
         flash("Unauthorized access", "error")
         return redirect(url_for("library.index"))
 
-    for attachment in list(document.attachments):
-        _delete_attachment_file(attachment)
+    _delete_document_attachments(document)
     db.session.delete(document)
     db.session.commit()
 
     flash("Document deleted successfully", "success")
+    return redirect(
+        url_for(
+            "library.index",
+            collection_id=document.collection_id if document.collection_id else None,
+        )
+    )
+
+
+@library_bp.route("/collection/add", methods=["POST"])
+def add_collection():
+    """Create a new collection for the current user."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("Collection name is required", "error")
+        return redirect(url_for("library.index"))
+
+    if Collection.query.filter_by(user_id=user_id, name=name).first():
+        flash("A collection with that name already exists", "error")
+        return redirect(url_for("library.index"))
+
+    collection = Collection(user_id=user_id, name=name)
+    db.session.add(collection)
+    db.session.commit()
+    flash("Collection created", "success")
+    return redirect(url_for("library.index", collection_id=collection.id))
+
+
+@library_bp.route("/collection/<int:coll_id>/rename", methods=["POST"])
+def rename_collection(coll_id):
+    """Rename an existing collection."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    collection = Collection.query.filter_by(
+        id=coll_id, user_id=user_id
+    ).first_or_404()
+
+    if collection.name == "General":
+        flash("The General collection cannot be renamed", "error")
+        return redirect(url_for("library.index"))
+
+    new_name = request.form.get("name", "").strip()
+    if not new_name:
+        flash("Collection name is required", "error")
+        return redirect(url_for("library.index", collection_id=collection.id))
+
+    if (
+        new_name == "General"
+        or Collection.query.filter(
+            Collection.id != collection.id,
+            Collection.user_id == user_id,
+            Collection.name == new_name,
+        ).first()
+    ):
+        flash("A collection with that name already exists", "error")
+        return redirect(url_for("library.index", collection_id=collection.id))
+
+    collection.name = new_name
+    collection.updated_at = datetime.now(UTC)
+    db.session.commit()
+    flash("Collection renamed", "success")
+    return redirect(url_for("library.index", collection_id=collection.id))
+
+
+@library_bp.route("/collection/<int:coll_id>/delete", methods=["POST"])
+def delete_collection(coll_id):
+    """Delete a collection and all of its documents and attachments."""
+    if "user_id" not in session:
+        return redirect(url_for("auth.login"))
+
+    user_id = session["user_id"]
+    collection = Collection.query.filter_by(
+        id=coll_id, user_id=user_id
+    ).first_or_404()
+
+    if collection.name == "General":
+        flash("The General collection cannot be deleted", "error")
+        return redirect(url_for("library.index", collection_id=collection.id))
+
+    for doc in list(collection.documents):
+        _delete_document_attachments(doc)
+    db.session.delete(collection)
+    db.session.commit()
+    flash("Collection deleted", "success")
     return redirect(url_for("library.index"))
 
 

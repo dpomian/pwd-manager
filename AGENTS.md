@@ -108,3 +108,8 @@ before proceeding.
 See `vulnerability-report.md` for the full findings and
 `security-fix-plan.md` for the phased rollout plan. Do not introduce changes
 that bypass the planned phase ordering without discussing first.
+
+# General Development
+- MUST follow Python software develpment best practices
+- MUST use uv for package management, run test, run project, etc.
+- MUST take into account the migration strategy when making changes. Any new change in the database schema must be reflected in the migration script.
