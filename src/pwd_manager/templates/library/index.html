@@ -2,15 +2,17 @@
 
 {% block title %}My Library - Password Manager{% endblock %}
 
+{% block container_class %}container-fluid px-2 py-3{% endblock %}
+
 {% block content %}
-<div class="row g-4 library-layout">
+<div class="row g-2 library-layout">
     <div class="col-lg-3 col-md-4 collections-sidebar">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0">Collections</h5>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">Collections</h6>
             <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addCollectionForm" aria-expanded="false" aria-controls="addCollectionForm">+</button>
         </div>
 
-        <div class="collapse mb-3" id="addCollectionForm">
+        <div class="collapse mb-2" id="addCollectionForm">
             <form method="POST" action="{{ url_for('library.add_collection') }}" class="d-flex gap-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="name" class="form-control form-control-sm" placeholder="New collection" required>
@@ -21,7 +23,7 @@
         <div class="list-group collection-list" id="collectionList">
             {% for coll in collections %}
                 {% set is_active = coll.id == active_collection.id %}
-                {% set doc_count = coll.documents | rejectattr('is_draft') | list | length %}
+                {% set doc_count = collection_counts[coll.id] %}
                 <div class="list-group-item collection-item{% if is_active %} active{% endif %}" data-collection-id="{{ coll.id }}">
                     <a href="{{ url_for('library.index', collection_id=coll.id) }}" class="collection-name{% if is_active %} text-white{% endif %}">
                         <span class="name-text">{{ coll.name }}</span>
@@ -57,29 +59,29 @@
     </div>
 
     <div class="col-lg-9 col-md-8 documents-area">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
-                <h2 class="mb-0">{{ active_collection.name }}</h2>
-                <small class="text-muted">{{ active_collection.documents | rejectattr('is_draft') | list | length }} documents</small>
+                <h4 class="mb-0">{{ active_collection.name }}</h4>
+                <small class="text-muted">{{ collection_counts[active_collection.id] }} documents</small>
             </div>
             <div>
-                <a href="{{ url_for('library.add_document', collection_id=active_collection.id) }}" class="btn btn-primary">+ New Document</a>
+                <a href="{{ url_for('library.add_document', collection_id=active_collection.id) }}" class="btn btn-sm btn-primary">+ New Document</a>
             </div>
         </div>
 
-        <div class="row mb-4">
+        <div class="row gx-2 gy-2 mb-2">
             <div class="col-md-6">
-                <div class="input-group">
+                <div class="input-group input-group-sm">
                     <span class="input-group-text">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16">
                             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
                         </svg>
                     </span>
-                    <input type="text" id="searchInput" class="form-control" placeholder="Filter by title or tags..." autocomplete="off" value="{{ search_query }}">
+                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Filter by title or tags..." autocomplete="off" value="{{ search_query }}">
                 </div>
             </div>
             <div class="col-md-6">
-                <select id="tagFilter" class="form-select">
+                <select id="tagFilter" class="form-select form-select-sm">
                     <option value="">Filter by tag...</option>
                     {% for tag in all_tags %}
                         <option value="{{ tag }}" {% if tag == tag_filter %}selected{% endif %}>{{ tag }}</option>
@@ -95,25 +97,34 @@
         <div class="list-group" id="documentList">
             {% if documents %}
                 {% for doc in documents %}
-                    <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center document-entry"
+                    <div class="list-group-item list-group-item-action document-entry d-flex align-items-center justify-content-between"
                          data-title="{{ doc.title }}"
-                         onclick="window.location.href = '{{ url_for('library.view_document', doc_id=doc.id) }}'">
-                        <div class="flex-grow-1">
-                            <h5 class="mb-1 entry-title">{{ doc.title }}</h5>
+                         data-url="{{ url_for('library.view_document', doc_id=doc.id) }}">
+                        <div class="d-flex align-items-center gap-2 flex-grow-1 min-w-0">
+                            <p class="mb-0 fw-semibold entry-title text-truncate">{{ doc.title }}</p>
                             {% if doc.tags %}
                                 <div class="tags">
                                     {% for tag in doc.tags.split(',') %}
-                                        <span class="badge bg-secondary me-1">{{ tag }}</span>
+                                        <span class="badge bg-secondary">{{ tag }}</span>
                                     {% endfor %}
                                 </div>
                             {% endif %}
-                            <small class="text-muted">Updated {{ doc.updated_at.strftime('%Y-%m-%d %H:%M') }}</small>
                         </div>
-                        <div onclick="event.stopPropagation()">
-                            <a href="{{ url_for('library.edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-primary me-1">Edit</a>
-                            <form action="{{ url_for('library.delete_document', doc_id=doc.id) }}" method="POST" style="display:inline;">
+                        <div class="d-flex align-items-center gap-2 ms-2 text-nowrap" onclick="event.stopPropagation()">
+                            <small class="text-muted" title="Created {{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}">Created {{ doc.created_at.strftime('%Y-%m-%d') }}</small>
+                            <a href="{{ url_for('library.edit_document', doc_id=doc.id) }}" class="btn btn-sm btn-link p-0 text-primary" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                    <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5v-.293z"/>
+                                </svg>
+                            </a>
+                            <form action="{{ url_for('library.delete_document', doc_id=doc.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this document?')">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this document?')">Delete</button>
+                                <button type="submit" class="btn btn-sm btn-link p-0 text-danger" title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM6.118 4L4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H6.118zM2.5 3V2h11v1h-11z"/>
+                                    </svg>
+                                </button>
                             </form>
                         </div>
                     </div>
@@ -182,6 +193,12 @@ document.addEventListener('DOMContentLoaded', function() {
             item.querySelector('.collection-name').classList.remove('d-none');
             item.querySelector('.collection-actions').classList.remove('d-none');
             item.querySelector('.rename-form').classList.add('d-none');
+        });
+    });
+
+    document.querySelectorAll('.document-entry').forEach(entry => {
+        entry.addEventListener('click', function() {
+            window.location.href = this.dataset.url;
         });
     });
 });

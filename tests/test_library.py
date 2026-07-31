@@ -32,6 +32,11 @@ class TestLibrary(unittest.TestCase):
             user_id=self.user.id, name="General"
         )
         db.session.add(self.general_collection)
+
+        self.other_general_collection = Collection(
+            user_id=self.other_user.id, name="General"
+        )
+        db.session.add(self.other_general_collection)
         db.session.commit()
 
         self.attachments_dir = tempfile.mkdtemp()
@@ -144,6 +149,7 @@ class TestLibrary(unittest.TestCase):
         """Users should not be able to view another user's document"""
         document = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Secret",
             encrypted_content=None,
             is_draft=False,
@@ -160,6 +166,7 @@ class TestLibrary(unittest.TestCase):
         """Documents should be editable and content re-encrypted"""
         document = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Old",
             encrypted_content=None,
             is_draft=False,
@@ -186,6 +193,7 @@ class TestLibrary(unittest.TestCase):
         """Documents and their on-disk attachments should be deletable"""
         document = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="To Delete",
             encrypted_content=None,
             is_draft=False,
@@ -223,6 +231,7 @@ class TestLibrary(unittest.TestCase):
         """Upload, list, download, preview, and delete attachments"""
         document = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="With Attachments",
             encrypted_content=None,
             is_draft=False,
@@ -290,6 +299,7 @@ class TestLibrary(unittest.TestCase):
         """POST /library/edit should update document tags"""
         document = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Doc",
             encrypted_content=None,
             is_draft=False,
@@ -313,6 +323,7 @@ class TestLibrary(unittest.TestCase):
         """GET /library?search=... should filter by title"""
         doc = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Quarterly Report",
             encrypted_content=None,
             is_draft=False,
@@ -330,6 +341,7 @@ class TestLibrary(unittest.TestCase):
         """GET /library?tag=... should filter by tag"""
         doc1 = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Personal Notes",
             encrypted_content=None,
             is_draft=False,
@@ -337,6 +349,7 @@ class TestLibrary(unittest.TestCase):
         )
         doc2 = Document(
             user_id=self.user.id,
+            collection_id=self.general_collection.id,
             title="Work Notes",
             encrypted_content=None,
             is_draft=False,
@@ -356,6 +369,7 @@ class TestLibrary(unittest.TestCase):
         """Search should not return documents owned by other users"""
         other_doc = Document(
             user_id=self.other_user.id,
+            collection_id=self.other_general_collection.id,
             title="Other Secret",
             encrypted_content=None,
             is_draft=False,

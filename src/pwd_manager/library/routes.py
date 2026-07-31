@@ -84,17 +84,9 @@ def index():
     search_query = request.args.get("search", "").lower()
     tag_filter = request.args.get("tag", "")
 
-    documents = Document.query.filter_by(user_id=user_id, is_draft=False)
-
-    if active_collection.name == "General":
-        documents = documents.filter(
-            db.or_(
-                Document.collection_id == active_collection.id,
-                Document.collection_id.is_(None),
-            )
-        )
-    else:
-        documents = documents.filter_by(collection_id=active_collection.id)
+    documents = Document.query.filter_by(
+        user_id=user_id, is_draft=False, collection_id=active_collection.id
+    )
 
     if search_query:
         safe_query = escape_like(search_query)
@@ -116,6 +108,13 @@ def index():
         if doc.tags:
             all_tags.update(tag.strip() for tag in doc.tags.split(","))
 
+    collection_counts = {
+        coll.id: Document.query.filter_by(
+            user_id=user_id, is_draft=False, collection_id=coll.id
+        ).count()
+        for coll in collections
+    }
+
     return render_template(
         "library/index.html",
         collections=collections,
@@ -124,6 +123,7 @@ def index():
         all_tags=sorted(all_tags),
         search_query=search_query,
         tag_filter=tag_filter,
+        collection_counts=collection_counts,
     )
 
 

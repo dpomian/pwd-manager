@@ -156,7 +156,7 @@ class Document(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
-    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=True)
+    collection_id = db.Column(db.Integer, db.ForeignKey("collection.id"), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     encrypted_content = db.Column(db.Text, nullable=True)
     tags = db.Column(db.String(255), nullable=True)
